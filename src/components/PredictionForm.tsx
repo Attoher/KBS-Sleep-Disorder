@@ -5,7 +5,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Slider } from "./ui/slider";
-import { Activity, Heart, Moon, Clock, User, Briefcase, Footprints, Brain } from "lucide-react";
+import { Activity, Heart, Moon, Clock, User, Footprints, Brain } from "lucide-react";
 import { toast } from "sonner";
 
 interface PredictionFormProps {
@@ -20,23 +20,30 @@ export interface PredictionResult {
 
 const PredictionForm = ({ onPredict }: PredictionFormProps) => {
   const [formData, setFormData] = useState({
-    age: 30,
+    age: "",
     gender: "",
-    occupation: "",
     sleepDuration: 7,
     qualityOfSleep: 7,
     physicalActivity: 50,
     stressLevel: 5,
     bmiCategory: "",
-    bloodPressure: "",
-    heartRate: 70,
-    dailySteps: 7000,
+    heartRate: "",
+    dailySteps: "",
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.age || !formData.gender || !formData.bmiCategory || !formData.heartRate || !formData.dailySteps) {
+      toast.error("Please fill in all fields", {
+        description: "All fields are required for accurate prediction.",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     // Simulate prediction logic
@@ -94,25 +101,28 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
               <User className="w-4 h-4" />
               Personal Information
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="age">Age</Label>
+                <Label htmlFor="age">Age <span className="text-destructive">*</span></Label>
                 <Input
                   id="age"
                   type="number"
                   value={formData.age}
                   onChange={(e) =>
-                    setFormData({ ...formData, age: parseInt(e.target.value) || 0 })
+                    setFormData({ ...formData, age: e.target.value })
                   }
                   min={1}
                   max={120}
+                  placeholder="Enter your age"
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
+                <Label htmlFor="gender">Gender <span className="text-destructive">*</span></Label>
                 <Select
                   value={formData.gender}
                   onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                  required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select gender" />
@@ -120,28 +130,6 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
                   <SelectContent>
                     <SelectItem value="male">Male</SelectItem>
                     <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="occupation">Occupation</Label>
-                <Select
-                  value={formData.occupation}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, occupation: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select occupation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="healthcare">Healthcare</SelectItem>
-                    <SelectItem value="engineer">Engineer</SelectItem>
-                    <SelectItem value="teacher">Teacher</SelectItem>
-                    <SelectItem value="sales">Sales</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -247,12 +235,13 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="bmi">BMI Category</Label>
+                <Label htmlFor="bmi">BMI Category <span className="text-destructive">*</span></Label>
                 <Select
                   value={formData.bmiCategory}
                   onValueChange={(value) =>
                     setFormData({ ...formData, bmiCategory: value })
                   }
+                  required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select BMI" />
@@ -268,7 +257,7 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
               <div className="space-y-2">
                 <Label htmlFor="heartRate" className="flex items-center gap-2">
                   <Heart className="w-4 h-4 text-destructive" />
-                  Heart Rate (BPM)
+                  Heart Rate (BPM) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="heartRate"
@@ -277,17 +266,19 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      heartRate: parseInt(e.target.value) || 0,
+                      heartRate: e.target.value,
                     })
                   }
                   min={40}
                   max={200}
+                  placeholder="e.g., 70"
+                  required
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dailySteps" className="flex items-center gap-2">
                   <Footprints className="w-4 h-4 text-secondary" />
-                  Daily Steps
+                  Daily Steps <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="dailySteps"
@@ -296,11 +287,13 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      dailySteps: parseInt(e.target.value) || 0,
+                      dailySteps: e.target.value,
                     })
                   }
                   min={0}
                   max={50000}
+                  placeholder="e.g., 7000"
+                  required
                 />
               </div>
             </div>
