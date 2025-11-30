@@ -29,7 +29,7 @@ const FeatureCards = () => {
     <section className="py-16">
       <div className="text-center mb-12">
         <h2 className="text-2xl md:text-3xl font-bold mb-3">
-          <span className="text-gradient">Why Choose</span> SleepHealth?
+          <span className="text-gradient text-glow-white">Why Choose</span> SleepHealth?
         </h2>
         <p className="text-muted-foreground max-w-2xl mx-auto">
           Trusted by healthcare professionals for accurate sleep disorder predictions

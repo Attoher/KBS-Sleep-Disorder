@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import WaveBackground from "@/components/WaveBackground";
 import LoadingScreen from "@/components/LoadingScreen";
-import Header from "@/components/Header";
 import PredictionForm, { PredictionResult } from "@/components/PredictionForm";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import FeatureCards from "@/components/FeatureCards";
@@ -30,9 +29,8 @@ const Index = () => {
   return (
     <div className="min-h-screen relative">
       <WaveBackground />
-      <Header />
 
-      <main className="relative z-10 pt-24 pb-16 px-4 sm:px-6 lg:px-8">
+      <main className="relative z-10 pt-12 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           {/* Hero Section */}
           <section className="text-center mb-12 animate-fade-up">
@@ -45,33 +43,13 @@ const Index = () => {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
               <span className="text-foreground">Sleep Disorder</span>
               <br />
-              <span className="text-gradient">Prediction System</span>
+              <span className="text-gradient text-glow-white">Prediction System</span>
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
               Advanced AI-powered analysis for healthcare professionals to predict
               and prevent sleep disorders with clinical precision.
             </p>
-
-            {/* Stats */}
-            <div className="flex flex-wrap justify-center gap-8 mb-12">
-              {[
-                { value: "95%", label: "Accuracy Rate" },
-                { value: "50K+", label: "Analyses Done" },
-                { value: "500+", label: "Healthcare Partners" },
-              ].map((stat, index) => (
-                <div
-                  key={stat.label}
-                  className="text-center animate-fade-up"
-                  style={{ animationDelay: `${(index + 1) * 100}ms` }}
-                >
-                  <div className="text-3xl md:text-4xl font-bold text-gradient">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-muted-foreground">{stat.label}</div>
-                </div>
-              ))}
-            </div>
           </section>
 
           {/* Main Content */}
