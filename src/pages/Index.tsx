@@ -75,8 +75,8 @@ const Index = () => {
               </p>
             </div>
 
-            <p className="text-xs text-muted-foreground mt-8">
-              © 2024 SleepHealth. Built for healthcare excellence.
+            <p className="text-xs text-foreground mt-8">
+              © 2025 Group 11.
             </p>
           </footer>
         </div>

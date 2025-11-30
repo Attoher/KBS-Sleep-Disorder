@@ -5,8 +5,9 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Slider } from "./ui/slider";
-import { Activity, Heart, Moon, Clock, User, Footprints, Brain } from "lucide-react";
+import { Activity, Heart, Moon, Clock, User, Footprints, Brain, Database } from "lucide-react";
 import { toast } from "sonner";
+import { Checkbox } from "./ui/checkbox";
 
 interface PredictionFormProps {
   onPredict: (result: PredictionResult) => void;
@@ -297,6 +298,15 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Neo4j Logging Option */}
+          <div className="flex items-center space-x-3 py-2">
+            <Checkbox id="logNeo4j" />
+            <Label htmlFor="logNeo4j" className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+              <Database className="w-4 h-4 text-primary" />
+              Log This Case to Neo4j
+            </Label>
           </div>
 
           <Button
