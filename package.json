@@ -1,0 +1,15 @@
+{
+  "name": "sleep-health-kbs",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "example": "node examples/exampleRun.js",
+    "neo4j-example": "node examples/examplePushToNeo4j.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "neo4j-driver": "^5.20.0",
+    "uuid": "^9.0.1"
+  }
+}

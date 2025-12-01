@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleep Health Analysis System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-brain-circuit"></i>
+                    <div>
+                        <h1>Sleep Health Analysis System</h1>
+                        <p>Knowledge-Based System for Sleep Disorder Screening</p>
+                    </div>
+                </div>
+                <div class="header-badge">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Clinical Decision Support</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="tabs-nav">
+            <button class="tab-btn active" data-tab="main-diagnosis">
+                <i class="fas fa-stethoscope"></i>
+                <span>Clinical Assessment</span>
+            </button>
+            <button class="tab-btn" data-tab="rule-testing">
+                <i class="fas fa-flask"></i>
+                <span>Rule Testing</span>
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Clinical Assessment Tab -->
+            <section id="main-diagnosis" class="tab-panel active">
+                <div class="panel-header">
+                    <h2><i class="fas fa-user-circle"></i>Patient Assessment</h2>
+                    <p>Complete the form below for comprehensive sleep health evaluation</p>
+                </div>
+
+                <form id="diagnosis-form" class="assessment-form">
+                    <!-- Personal Information Section -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <i class="fas fa-user-md"></i>
+                            <h3>Personal Information</h3>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="age">
+                                    <i class="fas fa-birthday-cake"></i>
+                                    Age (years)
+                                </label>
+                                <input type="number" id="age" min="1" max="120" value="45" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="gender">
+                                    <i class="fas fa-venus-mars"></i>
+                                    Gender
+                                </label>
+                                <select id="gender" required>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sleep Patterns Section -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <i class="fas fa-moon"></i>
+                            <h3>Sleep Patterns</h3>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="sleep-duration">
+                                    <i class="fas fa-clock"></i>
+                                    Sleep Duration (hours/night)
+                                </label>
+                                <div class="slider-container">
+                                    <input type="range" id="sleep-duration" min="0" max="12" step="0.5" value="4.5">
+                                    <div class="slider-labels">
+                                        <span>0h</span>
+                                        <span id="sleep-duration-value">4.5h</span>
+                                        <span>12h</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="sleep-quality">
+                                    <i class="fas fa-star"></i>
+                                    Sleep Quality (1-10 scale)
+                                </label>
+                                <div class="slider-container">
+                                    <input type="range" id="sleep-quality" min="1" max="10" value="3">
+                                    <div class="slider-labels">
+                                        <span>Poor</span>
+                                        <span id="sleep-quality-value">3</span>
+                                        <span>Excellent</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lifestyle Factors Section -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <i class="fas fa-heartbeat"></i>
+                            <h3>Lifestyle Factors</h3>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="stress-level">
+                                    <i class="fas fa-brain"></i>
+                                    Stress Level (1-10 scale)
+                                </label>
+                                <div class="slider-container">
+                                    <input type="range" id="stress-level" min="1" max="10" value="8">
+                                    <div class="slider-labels">
+                                        <span>Low</span>
+                                        <span id="stress-level-value">8</span>
+                                        <span>High</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="activity-minutes">
+                                    <i class="fas fa-running"></i>
+                                    Physical Activity (minutes/day)
+                                </label>
+                                <input type="number" id="activity-minutes" min="0" max="600" value="20" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="daily-steps">
+                                    <i class="fas fa-walking"></i>
+                                    Daily Steps
+                                </label>
+                                <input type="number" id="daily-steps" min="0" max="50000" value="3000" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="heart-rate">
+                                    <i class="fas fa-heart"></i>
+                                    Resting Heart Rate (bpm)
+                                </label>
+                                <input type="number" id="heart-rate" min="30" max="200" value="98" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Clinical Metrics Section -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <i class="fas fa-clipboard-list"></i>
+                            <h3>Clinical Metrics</h3>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="bmi-category">
+                                    <i class="fas fa-weight-scale"></i>
+                                    BMI Category
+                                </label>
+                                <select id="bmi-category" required>
+                                    <option value="Normal">Normal (18.5-24.9)</option>
+                                    <option value="Overweight">Overweight (25-29.9)</option>
+                                    <option value="Obese" selected>Obese (30+)</option>
+                                    <option value="Underweight">Underweight (&lt;18.5)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="blood-pressure">
+                                    <i class="fas fa-pressure-arrow"></i>
+                                    Blood Pressure
+                                </label>
+                                <input type="text" id="blood-pressure" value="150/95" 
+                                       placeholder="Systolic/Diastolic (e.g., 120/80)" required>
+                                <small>Format: systolic/diastolic</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-play-circle"></i>
+                            Run Comprehensive Analysis
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Results Section -->
+                <div id="results" class="results-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h2><i class="fas fa-chart-line"></i>Assessment Results</h2>
+                        <p>Detailed analysis based on clinical knowledge base</p>
+                    </div>
+
+                    <!-- Diagnosis Summary -->
+                    <div class="result-card primary">
+                        <div class="card-header">
+                            <i class="fas fa-diagnoses"></i>
+                            <h3>Clinical Diagnosis</h3>
+                        </div>
+                        <div class="card-content">
+                            <div id="diagnosis-result" class="diagnosis-main"></div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Assessment -->
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <div class="card-header">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <h3>Risk Assessment</h3>
+                            </div>
+                            <div class="card-content">
+                                <div id="risk-assessment" class="risk-grid"></div>
+                            </div>
+                        </div>
+
+                        <!-- Lifestyle Factors -->
+                        <div class="result-card">
+                            <div class="card-header">
+                                <i class="fas fa-clipboard-check"></i>
+                                <h3>Lifestyle Factors</h3>
+                            </div>
+                            <div class="card-content">
+                                <div id="lifestyle-issues" class="factors-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recommendations -->
+                    <div class="result-card">
+                        <div class="card-header">
+                            <i class="fas fa-tasks"></i>
+                            <h3>Clinical Recommendations</h3>
+                        </div>
+                        <div class="card-content">
+                            <div id="recommendations" class="recommendations-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Rules Fired -->
+                    <div class="result-card">
+                        <div class="card-header">
+                            <i class="fas fa-project-diagram"></i>
+                            <h3>Decision Logic</h3>
+                        </div>
+                        <div class="card-content">
+                            <div id="fired-rules" class="rules-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Rule Testing Tab -->
+            <section id="rule-testing" class="tab-panel">
+                <div class="panel-header">
+                    <h2><i class="fas fa-flask"></i>Knowledge Base Testing</h2>
+                    <p>Validate individual clinical decision rules with test cases</p>
+                </div>
+
+                <div id="rule-testing-container" class="rules-testing-grid"></div>
+                
+                <div class="bulk-test-section">
+                    <button id="test-all-rules" class="btn-secondary">
+                        <i class="fas fa-play"></i>
+                        Execute Comprehensive Test Suite
+                    </button>
+                    <div id="all-rules-results" class="bulk-results"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <i class="fas fa-hospital-user"></i>
+                    <span>Sleep Health Analysis System v1.0 - Clinical Decision Support Tool</span>
+                </div>
+                <div class="footer-status">
+                    <i class="fas fa-circle system-status"></i>
+                    <span>System Operational</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
