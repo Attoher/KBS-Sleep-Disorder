@@ -5,18 +5,16 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Slider } from "./ui/slider";
-import { Activity, Heart, Moon, Clock, User, Footprints, Brain, Database } from "lucide-react";
+import { Activity, Heart, Moon, Clock, User, Footprints, Brain, Database, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "./ui/checkbox";
+import { preprocessInput, RawInput } from "../lib/kbs/fact_preprocess";
+import { forwardChain, InferenceResult } from "../lib/kbs/inference";
+import { Neo4jClient } from "../lib/neo4j/neo4j_client";
+import { v4 as uuidv4 } from 'uuid';
 
 interface PredictionFormProps {
-  onPredict: (result: PredictionResult) => void;
-}
-
-export interface PredictionResult {
-  disorder: string;
-  confidence: number;
-  recommendations: string[];
+  onPredict: (result: InferenceResult) => void;
 }
 
 const PredictionForm = ({ onPredict }: PredictionFormProps) => {
@@ -30,56 +28,86 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
     bmiCategory: "",
     heartRate: "",
     dailySteps: "",
+    bloodPressure: "", // New field
   });
 
+  const [logNeo4j, setLogNeo4j] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
-    if (!formData.age || !formData.gender || !formData.bmiCategory || !formData.heartRate || !formData.dailySteps) {
+    if (!formData.age || !formData.gender || !formData.bmiCategory || !formData.heartRate || !formData.dailySteps || !formData.bloodPressure) {
       toast.error("Please fill in all fields", {
         description: "All fields are required for accurate prediction.",
       });
       return;
     }
 
-    setIsLoading(true);
-
-    // Simulate prediction logic
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // Mock prediction result based on inputs
-    let disorder = "None";
-    let confidence = 85;
-    const recommendations: string[] = [];
-
-    if (formData.sleepDuration < 6) {
-      disorder = "Insomnia";
-      confidence = 78;
-      recommendations.push("Maintain a consistent sleep schedule");
-      recommendations.push("Avoid caffeine and screens before bed");
-    } else if (formData.stressLevel > 7 && formData.qualityOfSleep < 5) {
-      disorder = "Sleep Apnea";
-      confidence = 72;
-      recommendations.push("Consider consulting a sleep specialist");
-      recommendations.push("Maintain a healthy weight");
-    } else if (formData.physicalActivity < 30 && formData.bmiCategory === "overweight") {
-      disorder = "Sleep Apnea";
-      confidence = 68;
-      recommendations.push("Increase daily physical activity");
-      recommendations.push("Try sleeping on your side");
-    } else {
-      recommendations.push("Continue maintaining healthy sleep habits");
-      recommendations.push("Regular exercise supports quality sleep");
+    // Validate BP format
+    if (!/^\d+\/\d+$/.test(formData.bloodPressure)) {
+      toast.error("Invalid Blood Pressure format", {
+        description: "Please use format: systolic/diastolic (e.g., 120/80)",
+      });
+      return;
     }
 
-    onPredict({ disorder, confidence, recommendations });
-    toast.success("Analysis complete!", {
-      description: "Your sleep health prediction is ready.",
-    });
-    setIsLoading(false);
+    setIsLoading(true);
+
+    try {
+      // 1. Prepare Raw Input
+      const rawInput: RawInput = {
+        age: parseInt(formData.age),
+        gender: formData.gender,
+        sleepDuration: formData.sleepDuration,
+        qualityOfSleep: formData.qualityOfSleep,
+        stressLevel: formData.stressLevel,
+        physicalActivity: formData.physicalActivity,
+        bmiCategory: formData.bmiCategory.charAt(0).toUpperCase() + formData.bmiCategory.slice(1), // Capitalize for rules
+        bloodPressure: formData.bloodPressure,
+        heartRate: parseInt(formData.heartRate),
+        dailySteps: parseInt(formData.dailySteps),
+      };
+
+      // 2. Preprocess & Inference
+      const facts = preprocessInput(rawInput);
+      const result = forwardChain(facts);
+
+      // 3. Neo4j Logging (Optional)
+      if (logNeo4j) {
+        const personId = `UI_${uuidv4().slice(0, 8)}`;
+        const neo4jClient = new Neo4jClient();
+        try {
+          await neo4jClient.pushCase(personId, rawInput, result.facts, result.firedRules);
+          toast.success(`Case logged to Neo4j`, {
+            description: `Person ID: ${personId}`,
+          });
+        } catch (error) {
+          console.error("Neo4j Error:", error);
+          toast.error("Failed to log to Neo4j", {
+            description: "Check console for details. Analysis still displayed.",
+          });
+        } finally {
+          await neo4jClient.close();
+        }
+      }
+
+      // 4. Return results
+      // Simulate small delay for UX
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      onPredict(result);
+      toast.success("Analysis complete!", {
+        description: "Your sleep health prediction is ready.",
+      });
+
+    } catch (error) {
+      console.error("Prediction Error:", error);
+      toast.error("An error occurred during analysis");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -129,8 +157,8 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -234,7 +262,7 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="bmi">BMI Category <span className="text-destructive">*</span></Label>
                 <Select
@@ -255,6 +283,28 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* NEW: Blood Pressure Field */}
+              <div className="space-y-2">
+                <Label htmlFor="bloodPressure" className="flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-destructive" />
+                  Blood Pressure <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="bloodPressure"
+                  type="text"
+                  value={formData.bloodPressure}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bloodPressure: e.target.value,
+                    })
+                  }
+                  placeholder="e.g., 120/80"
+                  required
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="heartRate" className="flex items-center gap-2">
                   <Heart className="w-4 h-4 text-destructive" />
@@ -302,7 +352,11 @@ const PredictionForm = ({ onPredict }: PredictionFormProps) => {
 
           {/* Neo4j Logging Option */}
           <div className="flex items-center space-x-3 py-2">
-            <Checkbox id="logNeo4j" />
+            <Checkbox
+              id="logNeo4j"
+              checked={logNeo4j}
+              onCheckedChange={(checked) => setLogNeo4j(checked as boolean)}
+            />
             <Label htmlFor="logNeo4j" className="flex items-center gap-2 cursor-pointer text-sm font-medium">
               <Database className="w-4 h-4 text-primary" />
               Log This Case to Neo4j

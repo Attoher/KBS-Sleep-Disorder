@@ -1,20 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import WaveBackground from "@/components/WaveBackground";
 import LoadingScreen from "@/components/LoadingScreen";
-import PredictionForm, { PredictionResult } from "@/components/PredictionForm";
+import PredictionForm from "@/components/PredictionForm";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import FeatureCards from "@/components/FeatureCards";
 import { Activity, Moon, Heart } from "lucide-react";
+import { InferenceResult } from "@/lib/kbs/inference";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [prediction, setPrediction] = useState<PredictionResult | null>(null);
+  const [prediction, setPrediction] = useState<InferenceResult | null>(null);
 
   const handleLoadingComplete = () => {
     setIsLoading(false);
   };
 
-  const handlePrediction = (result: PredictionResult) => {
+  const handlePrediction = (result: InferenceResult) => {
     setPrediction(result);
   };
 
