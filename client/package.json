@@ -1,0 +1,29 @@
+{
+  "name": "sleep-kbs-client",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sleep Health KBS Frontend",
+  "scripts": {
+    "start": "live-server public --port=3000 --host=localhost",
+    "build": "echo 'Build process would go here'",
+    "test": "echo 'No tests specified'"
+  },
+  "dependencies": {
+    "chart.js": "^4.3.0"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

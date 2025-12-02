@@ -1,73 +1,88 @@
-import express from 'express';
-import { preprocessInput } from './engine/factPreprocess.js';
-import { forwardChain } from './engine/inference.js';
-import { Neo4jClient } from './neo4j-integration/neo4jClient.js';
-import { v4 as uuidv4 } from 'uuid';
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const path = require('path');
+
+const diagnosisRoutes = require('./server/routes/diagnosis');
+const neo4jRoutes = require('./server/routes/neo4j');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
-app.use(express.json());
-app.use(express.static('public'));
-
-// Helper functions
-function summarizeDiagnosis(facts) {
-    if (facts.diagnosis_mixed) return "Mixed Sleep Disorder (Insomnia + Sleep Apnea)";
-    if (facts.diagnosis_apnea) return "Sleep Apnea";
-    if (facts.diagnosis_insomnia) return "Insomnia";
-    if (facts.diagnosis_none) return "No Sleep Disorder";
-    return "Unspecified / Inconclusive";
-}
-
-function mapRecIdToText(recId) {
-    const mapping = {
-        "REC_SLEEP_HYGIENE": "Improve sleep hygiene",
-        "REC_PHYSICAL_ACTIVITY": "Increase physical activity (≥150 min/week)",
-        "REC_STRESS_MANAGEMENT": "Practice stress reduction / stress management",
-        "REC_WEIGHT_MANAGEMENT": "Weight management program",
-        "REC_APNEA_EVAL": "Consult healthcare provider for sleep apnea evaluation",
-    };
-    return mapping[recId] || recId;
-}
-
-// API endpoint for diagnosis
-app.post('/api/diagnose', async (req, res) => {
-    try {
-        const rawInput = req.body;
-        
-        // Basic validation
-        if (!rawInput.BloodPressure || !rawInput.BloodPressure.includes('/')) {
-            return res.status(400).json({ error: "Blood Pressure format invalid. Use e.g. '120/80'." });
-        }
-
-        const preprocessed = preprocessInput(rawInput);
-        const { facts: finalFacts, firedRules } = forwardChain(preprocessed);
-
-        const result = {
-            diagnosis: summarizeDiagnosis(finalFacts),
-            insomniaRisk: finalFacts.insomnia_risk || "N/A",
-            apneaRisk: finalFacts.apnea_risk || "N/A",
-            lifestyleIssues: {
-                sleep: finalFacts.lifestyle_issue_sleep || false,
-                stress: finalFacts.lifestyle_issue_stress || false,
-                activity: finalFacts.lifestyle_issue_activity || false,
-                weight: finalFacts.lifestyle_issue_weight || false,
-            },
-            recommendations: (finalFacts.recommendations || []).map(recId => ({
-                id: recId,
-                text: mapRecIdToText(recId)
-            })),
-            firedRules: firedRules,
-            allFacts: finalFacts
-        };
-
-        res.json(result);
-    } catch (error) {
-        console.error('Diagnosis error:', error);
-        res.status(500).json({ error: 'Internal server error during diagnosis' });
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'"]
     }
+  }
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+app.use('/api/', limiter);
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.CLIENT_URL 
+    : 'http://localhost:3000',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+
+// Logging
+app.use(morgan('combined'));
+
+// Body parsing
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// API Routes
+app.use('/api/diagnosis', diagnosisRoutes);
+app.use('/api/neo4j', neo4jRoutes);
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+});
+
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'client/build')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  });
+}
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    error: 'Something went wrong!',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
 });
 
 app.listen(PORT, () => {
-    console.log(`Sleep Health KBS server running on http://localhost:${PORT}`);
+  console.log(`
+  🚀 Sleep Health KBS Server running!
+  📡 Port: ${PORT}
+  🌐 Environment: ${process.env.NODE_ENV || 'development'}
+  📊 Neo4j: ${process.env.NEO4J_URI || 'Not configured'}
+  `);
 });

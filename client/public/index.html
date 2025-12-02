@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleep Health KBS - Knowledge-Based System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary: #7209b7;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --light: #f8f9fa;
+            --dark: #2c3e50;
+            --gray: #95a5a6;
+            --border: #e0e0e0;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--dark);
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header h1 i {
+            color: var(--secondary);
+        }
+
+        .subtitle {
+            color: var(--gray);
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--light);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card i {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius);
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .card h2 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card h2 i {
+            color: var(--secondary);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .slider-container {
+            background: var(--light);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .slider-value {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .value-display {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, var(--success), var(--warning), var(--danger));
+            border-radius: 4px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .results-container {
+            margin-top: 2rem;
+        }
+
+        .diagnosis-card {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 2rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(67, 97, 238, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(67, 97, 238, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(67, 97, 238, 0); }
+        }
+
+        .diagnosis-card h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            margin: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .risk-high { background: var(--danger); color: white; }
+        .risk-moderate { background: var(--warning); color: white; }
+        .risk-low { background: var(--success); color: white; }
+
+        .recommendation-list {
+            list-style: none;
+        }
+
+        .recommendation-list li {
+            padding: 1rem;
+            background: var(--light);
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .rules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .rule-card {
+            background: var(--light);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .rule-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+        }
+
+        .rule-card.active {
+            border-color: var(--success);
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        .rule-id {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: white;
+            margin-top: 2rem;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+            margin: 0 0.5rem;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <h1><i class="fas fa-moon"></i> Sleep Health KBS</h1>
+            <p class="subtitle">Knowledge-Based System for Sleep Disorder Diagnosis (Insomnia / Sleep Apnea)</p>
+            <p>Final Project – AI-Powered Sleep Health Assessment System</p>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <i class="fas fa-rules"></i>
+                    <h3>20</h3>
+                    <p>Expert Rules</p>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-stethoscope"></i>
+                    <h3>4</h3>
+                    <p>Diagnosis Types</p>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-chart-line"></i>
+                    <h3>10+</h3>
+                    <p>Health Metrics</p>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-lightbulb"></i>
+                    <h3>5</h3>
+                    <p>Recommendations</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Column: Input Form -->
+            <div class="card">
+                <h2><i class="fas fa-user-md"></i> Patient Assessment</h2>
+                
+                <div class="form-group">
+                    <label for="age">Age (years)</label>
+                    <input type="number" id="age" class="form-control" min="1" max="120" value="45">
+                </div>
+
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select id="gender" class="form-control">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div class="slider-container">
+                    <div class="slider-value">
+                        <span>Sleep Duration</span>
+                        <span class="value-display" id="sleepDurationValue">7.5 hours</span>
+                    </div>
+                    <input type="range" id="sleepDuration" min="0" max="12" step="0.5" value="7.5">
+                </div>
+
+                <div class="slider-container">
+                    <div class="slider-value">
+                        <span>Sleep Quality (1-10)</span>
+                        <span class="value-display" id="sleepQualityValue">7</span>
+                    </div>
+                    <input type="range" id="sleepQuality" min="1" max="10" step="1" value="7">
+                </div>
+
+                <div class="slider-container">
+                    <div class="slider-value">
+                        <span>Stress Level (1-10)</span>
+                        <span class="value-display" id="stressValue">5</span>
+                    </div>
+                    <input type="range" id="stressLevel" min="1" max="10" step="1" value="5">
+                </div>
+
+                <div class="form-group">
+                    <label for="activity">Physical Activity (minutes/day)</label>
+                    <input type="number" id="activity" class="form-control" min="0" max="600" value="30">
+                </div>
+
+                <div class="form-group">
+                    <label for="bmi">BMI Category</label>
+                    <select id="bmi" class="form-control">
+                        <option value="Normal">Normal</option>
+                        <option value="Overweight">Overweight</option>
+                        <option value="Obese" selected>Obese</option>
+                        <option value="Underweight">Underweight</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="bp">Blood Pressure (e.g., 120/80)</label>
+                    <input type="text" id="bp" class="form-control" value="150/95">
+                </div>
+
+                <button class="btn btn-primary btn-block" onclick="runDiagnosis()">
+                    <i class="fas fa-play-circle"></i> Run Diagnosis
+                </button>
+            </div>
+
+            <!-- Right Column: Results -->
+            <div class="card">
+                <h2><i class="fas fa-chart-bar"></i> Diagnosis Results</h2>
+                
+                <div id="resultsPlaceholder">
+                    <p style="text-align: center; color: var(--gray); padding: 3rem;">
+                        <i class="fas fa-stethoscope" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
+                        Enter patient data and click "Run Diagnosis" to see results
+                    </p>
+                </div>
+
+                <div id="resultsContainer" class="results-container" style="display: none;">
+                    <div class="diagnosis-card" id="diagnosisCard">
+                        <h3><i class="fas fa-diagnoses"></i> <span id="diagnosisText">Diagnosis</span></h3>
+                        <div id="riskBadges"></div>
+                    </div>
+
+                    <h3><i class="fas fa-exclamation-triangle"></i> Lifestyle Issues</h3>
+                    <div id="lifestyleIssues"></div>
+
+                    <h3><i class="fas fa-lightbulb"></i> Recommendations</h3>
+                    <ul class="recommendation-list" id="recommendations"></ul>
+
+                    <h3><i class="fas fa-cogs"></i> Rules Fired</h3>
+                    <div id="firedRules"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rules Section -->
+        <div class="card" style="grid-column: 1 / -1;">
+            <h2><i class="fas fa-book"></i> Knowledge Base Rules</h2>
+            <div class="rules-grid" id="rulesGrid">
+                <!-- Rules will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Sleep Health KBS v1.0 | Knowledge-Based System for Sleep Disorder Diagnosis</p>
+        <p>© 2024 Final Project | Based on AASM, WHO, and Clinical Guidelines</p>
+        <p>
+            <a href="#"><i class="fas fa-file-medical"></i> Documentation</a> |
+            <a href="#"><i class="fas fa-database"></i> Neo4j Integration</a> |
+            <a href="#"><i class="fas fa-code"></i> API</a>
+        </p>
+    </footer>
+
+    <script>
+        // Update slider values in real-time
+        document.getElementById('sleepDuration').addEventListener('input', function(e) {
+            document.getElementById('sleepDurationValue').textContent = e.target.value + ' hours';
+        });
+
+        document.getElementById('sleepQuality').addEventListener('input', function(e) {
+            document.getElementById('sleepQualityValue').textContent = e.target.value;
+        });
+
+        document.getElementById('stressLevel').addEventListener('input', function(e) {
+            document.getElementById('stressValue').textContent = e.target.value;
+        });
+
+        // Initialize rules display
+        function initializeRules() {
+            const rules = [
+                { id: 'R1', name: 'Insomnia High Risk', category: 'insomnia' },
+                { id: 'R2', name: 'Insomnia Moderate Risk', category: 'insomnia' },
+                { id: 'R3', name: 'Insomnia Moderate Risk', category: 'insomnia' },
+                { id: 'R4', name: 'Insomnia Low Risk', category: 'insomnia' },
+                { id: 'R5', name: 'Apnea High Risk', category: 'apnea' },
+                { id: 'R6', name: 'Apnea Moderate Risk', category: 'apnea' },
+                { id: 'R7', name: 'Apnea Moderate Risk', category: 'apnea' },
+                { id: 'R8', name: 'Apnea Low Risk', category: 'apnea' },
+                { id: 'R9', name: 'Low Activity Issue', category: 'lifestyle' },
+                { id: 'R10', name: 'High Stress Issue', category: 'lifestyle' },
+                { id: 'R11', name: 'Short Sleep Issue', category: 'lifestyle' },
+                { id: 'R12', name: 'Weight Issue', category: 'lifestyle' },
+                { id: 'R13', name: 'Diagnosis: Insomnia', category: 'diagnosis' },
+                { id: 'R14', name: 'Diagnosis: Apnea', category: 'diagnosis' },
+                { id: 'R15', name: 'Diagnosis: Mixed', category: 'diagnosis' },
+                { id: 'R16', name: 'Diagnosis: None', category: 'diagnosis' },
+                { id: 'R17', name: 'Sleep Hygiene Rec', category: 'recommendation' },
+                { id: 'R18', name: 'Physical Activity Rec', category: 'recommendation' },
+                { id: 'R19', name: 'Stress Management Rec', category: 'recommendation' },
+                { id: 'R20', name: 'Weight + Apnea Eval Rec', category: 'recommendation' }
+            ];
+
+            const rulesGrid = document.getElementById('rulesGrid');
+            rules.forEach(rule => {
+                const ruleCard = document.createElement('div');
+                ruleCard.className = 'rule-card';
+                ruleCard.innerHTML = `
+                    <div class="rule-id">${rule.id}</div>
+                    <h4>${rule.name}</h4>
+                    <p><strong>Category:</strong> ${rule.category}</p>
+                    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="testRule('${rule.id}')">
+                        <i class="fas fa-vial"></i> Test
+                    </button>
+                `;
+                rulesGrid.appendChild(ruleCard);
+            });
+        }
+
+        // Run diagnosis
+        async function runDiagnosis() {
+            const inputData = {
+                age: parseInt(document.getElementById('age').value),
+                gender: document.getElementById('gender').value,
+                sleepDuration: parseFloat(document.getElementById('sleepDuration').value),
+                sleepQuality: parseInt(document.getElementById('sleepQuality').value),
+                stressLevel: parseInt(document.getElementById('stressLevel').value),
+                activityMinutes: parseInt(document.getElementById('activity').value),
+                bmiCategory: document.getElementById('bmi').value,
+                bloodPressure: document.getElementById('bp').value,
+                heartRate: 72,
+                dailySteps: 5000
+            };
+
+            // Validate blood pressure format
+            if (!inputData.bloodPressure.includes('/')) {
+                alert('Please enter blood pressure in format: systolic/diastolic (e.g., 120/80)');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/diagnosis/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(inputData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayResults(result);
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            }
+        }
+
+        // Display results
+        function displayResults(data) {
+            document.getElementById('resultsPlaceholder').style.display = 'none';
+            document.getElementById('resultsContainer').style.display = 'block';
+
+            // Update diagnosis
+            document.getElementById('diagnosisText').textContent = data.diagnosis;
+
+            // Update risk badges
+            const riskBadges = document.getElementById('riskBadges');
+            riskBadges.innerHTML = '';
+            
+            if (data.results.risks.insomnia) {
+                const badge = document.createElement('span');
+                badge.className = `risk-badge risk-${data.results.risks.insomnia}`;
+                badge.textContent = `Insomnia: ${data.results.risks.insomnia.toUpperCase()}`;
+                riskBadges.appendChild(badge);
+            }
+            
+            if (data.results.risks.apnea) {
+                const badge = document.createElement('span');
+                badge.className = `risk-badge risk-${data.results.risks.apnea}`;
+                badge.textContent = `Apnea: ${data.results.risks.apnea.toUpperCase()}`;
+                riskBadges.appendChild(badge);
+            }
+
+            // Update lifestyle issues
+            const lifestyleDiv = document.getElementById('lifestyleIssues');
+            lifestyleDiv.innerHTML = '';
+            
+            Object.entries(data.results.lifestyleIssues).forEach(([key, value]) => {
+                if (value) {
+                    const issue = document.createElement('div');
+                    issue.className = 'slider-container';
+                    issue.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</span>
+                            <span style="color: var(--danger); font-weight: 600;">Detected</span>
+                        </div>
+                    `;
+                    lifestyleDiv.appendChild(issue);
+                }
+            });
+
+            // Update recommendations
+            const recList = document.getElementById('recommendations');
+            recList.innerHTML = '';
+            
+            data.results.recommendations.forEach(rec => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                    <div>
+                        <strong>${rec.title}</strong><br>
+                        <small>${rec.description}</small>
+                    </div>
+                `;
+                recList.appendChild(li);
+            });
+
+            // Update fired rules
+            const rulesDiv = document.getElementById('firedRules');
+            rulesDiv.innerHTML = '';
+            
+            data.rules.fired.forEach(ruleId => {
+                const ruleCard = document.querySelector(`.rule-card:has(.rule-id:contains("${ruleId}"))`);
+                if (ruleCard) {
+                    ruleCard.classList.add('active');
+                }
+                
+                const span = document.createElement('span');
+                span.className = 'rule-id';
+                span.style.marginRight = '0.5rem';
+                span.textContent = ruleId;
+                rulesDiv.appendChild(span);
+            });
+
+            // Scroll to results
+            document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Test specific rule
+        async function testRule(ruleId) {
+            try {
+                const response = await fetch(`/api/diagnosis/rules/${ruleId}`);
+                const result = await response.json();
+                
+                if (result.ruleFired) {
+                    alert(`✅ Rule ${ruleId} fired successfully!\n\nFired rules: ${result.allFiredRules.join(', ')}`);
+                } else {
+                    alert(`❌ Rule ${ruleId} did not fire.\n\nFired rules: ${result.allFiredRules.join(', ')}`);
+                }
+            } catch (error) {
+                alert('Error testing rule: ' + error.message);
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', initializeRules);
+    </script>
+</body>
+</html>
