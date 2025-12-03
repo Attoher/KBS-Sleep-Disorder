@@ -9,7 +9,7 @@ A modern, AI-powered web application for diagnosing sleep disorders (Insomnia an
 
 ## 🌟 Live Demo
 
-**Frontend**: [http://localhost:3000](http://localhost:3000)  
+**Frontend**: [http://localhost:5000](http://localhost:5000)  
 **Backend API**: [http://localhost:5000](http://localhost:5000)  
 **Neo4j Browser**: [http://localhost:7474](http://localhost:7474)
 
@@ -57,6 +57,48 @@ A modern, AI-powered web application for diagnosing sleep disorders (Insomnia an
 4. **Lifestyle-related Sleep Issues**
 5. **No Sleep Disorder** (Healthy baseline)
 
+### Explanation System
+This project includes a comprehensive explanation system designed to improve clinical interpretability and transparency.
+The system provides two layers of explainability:
+
+1. High-Level Clinical Summary
+- After processing patient data and inferring risks, the system generates a natural-language summary explaining:
+- Key contributing factors
+- Supporting clinical indicators
+- Reasoning behind the diagnosis
+- A summary consistent with AASM/WHO guidelines
+
+Example:
+“The system identifies a HIGH risk of INSOMNIA, triggered primarily by short sleep duration and elevated stress levels. Lifestyle improvements are recommended to reduce future complications.”
+
+2. Rule-Level Explanation (Per-Rule Detail)
+Every rule in the rule base (R1–R20) includes metadata explaining:
+- Rule ID
+- Clinical category
+- Reasoning
+- Clinical source (AASM, WHO, OSA guidelines)
+When a rule fires, it is:
+- Highlighted in the Rules Fired section
+- Shown with explanation text
+- Marked visually in the UI rules grid
+
+### Dynamic Neo4j Statistcs
+The UI now integrates real-time statistics retrieved directly from Neo4j, allowing the system to display live analytics based on historical assessment data.
+The dashboard header displays:
+- Total Recorded Cases
+- Total Expert Rules Loaded
+- High Insomnia Risk Count
+- High Apnea Risk Count
+These values are fetched from the backend via:
+```
+GET /api/neo4j/stats
+```
+Each assessment performed in the system updates Neo4j’s graph database, allowing:
+- Population-level insights
+- Longitudinal risk analysis
+- Rule firing distributions
+- Data-driven visualization in future extensions
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -87,7 +129,12 @@ A modern, AI-powered web application for diagnosing sleep disorders (Insomnia an
 4. **Access the application**
    - Frontend: [http://localhost:3000](http://localhost:3000)
    - Backend API: [http://localhost:5000](http://localhost:5000)
-   - Neo4j Browser: [http://localhost:7474](http://localhost:7474) (username: neo4j, password: 12345678)
+   - Neo4j Browser: [http://localhost:7474](http://localhost:7474) (username: sleep_app, password: sleep123)
+   ```
+   CREATE USER sleep_app SET PASSWORD 'sleep123' CHANGE NOT REQUIRED;
+   GRANT ROLE admin TO sleep_app;
+   ```
+   
 
 ## 🏗️ Project Structure
 
@@ -319,8 +366,8 @@ CLIENT_URL=http://localhost:3000
 
 # Neo4j Configuration
 NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=12345678
+NEO4J_USER=sleep_app
+NEO4J_PASSWORD=sleep123
 NEO4J_DATABASE=neo4j
 
 # Application
