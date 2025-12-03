@@ -216,20 +216,39 @@ const neo4jController = {
   },
 
   // Get statistics
+    // Get statistics (summary + detailed)
   async getStatistics(req, res) {
     try {
       await neo4jClient.connect();
       const session = neo4jClient.driver.session({ database: process.env.NEO4J_DATABASE });
-      
+
       try {
-        // Get diagnosis distribution
+        // 0) Total cases (Person nodes)
+        const totalCasesResult = await session.run(`
+          MATCH (p:Person)
+          RETURN count(p) AS totalCases
+        `);
+        const totalCases = totalCasesResult.records[0]
+          ? totalCasesResult.records[0].get('totalCases').toNumber()
+          : 0;
+
+        // 1) Rules count
+        const rulesCountResult = await session.run(`
+          MATCH (r:Rule)
+          RETURN count(r) AS rulesCount
+        `);
+        const rulesCount = rulesCountResult.records[0]
+          ? rulesCountResult.records[0].get('rulesCount').toNumber()
+          : 0;
+
+        // 2) Diagnosis distribution
         const diagnosisResult = await session.run(`
           MATCH (p:Person)-[:HAS_SLEEP_DISORDER]->(d:Sleep_Disorder)
           RETURN d.code as diagnosis, count(p) as count
           ORDER BY count DESC
         `);
 
-        // Get rule firing frequency
+        // 3) Rule firing frequency
         const ruleResult = await session.run(`
           MATCH (p:Person)-[:TRIGGERED_RULE]->(r:Rule)
           RETURN r.id as rule, count(p) as frequency
@@ -237,7 +256,7 @@ const neo4jController = {
           LIMIT 10
         `);
 
-        // Get lifestyle issue frequency
+        // 4) Lifestyle issue frequency
         const lifestyleResult = await session.run(`
           MATCH (p:Person)
           RETURN 
@@ -247,25 +266,55 @@ const neo4jController = {
             sum(CASE WHEN p.lifestyle_issue_weight THEN 1 ELSE 0 END) as weight_issues
         `);
 
-        // Get recommendation frequency
+                // 4b) Recommendation frequency
         const recResult = await session.run(`
           MATCH (p:Person)-[:LIFESTYLE_ISSUE]->(r:Recommendation)
           RETURN r.id as recommendation, count(p) as frequency
           ORDER BY frequency DESC
         `);
 
-        // Get risk distribution
+
+        // 5) Risk distribution (detailed + summary)
         const riskResult = await session.run(`
           MATCH (p:Person)
+          WHERE p.insomnia_risk IS NOT NULL OR p.apnea_risk IS NOT NULL
           RETURN 
             p.insomnia_risk as insomnia_risk,
             p.apnea_risk as apnea_risk,
             count(p) as count
-          WHERE p.insomnia_risk IS NOT NULL OR p.apnea_risk IS NOT NULL
           ORDER BY count DESC
         `);
 
-        // Get time-based statistics
+        const insomniaRiskSummary = { high: 0, moderate: 0, low: 0 };
+        const apneaRiskSummary = { high: 0, moderate: 0, low: 0 };
+
+        const riskDistribution = riskResult.records.map(r => {
+          const insomniaRisk = r.get('insomnia_risk');
+          const apneaRisk = r.get('apnea_risk');
+          const count = r.get('count').toNumber();
+
+          if (insomniaRisk) {
+            const key = String(insomniaRisk).toLowerCase();
+            if (insomniaRiskSummary[key] !== undefined) {
+              insomniaRiskSummary[key] += count;
+            }
+          }
+
+          if (apneaRisk) {
+            const key = String(apneaRisk).toLowerCase();
+            if (apneaRiskSummary[key] !== undefined) {
+              apneaRiskSummary[key] += count;
+            }
+          }
+
+          return {
+            insomnia_risk: insomniaRisk,
+            apnea_risk: apneaRisk,
+            count
+          };
+        });
+
+        // 6) Time-based statistics
         const timeResult = await session.run(`
           MATCH (p:Person)
           WHERE p.created_at IS NOT NULL
@@ -276,8 +325,22 @@ const neo4jController = {
           LIMIT 30
         `);
 
+        const dailyCases = timeResult.records.map(r => ({
+          date: r.get('date').toString(),
+          cases: r.get('daily_cases').toNumber()
+        }));
+
+        // Response: ringkasan untuk header + statistik detail untuk analisis
         res.json({
           success: true,
+
+          // 🔹 Dipakai header stats di frontend
+          totalCases,
+          rulesCount,
+          insomniaRisk: insomniaRiskSummary,
+          apneaRisk: apneaRiskSummary,
+
+          // 🔹 Dipakai kalau mau grafik/analisis lebih lanjut
           statistics: {
             diagnosisDistribution: diagnosisResult.records.map(r => ({
               diagnosis: r.get('diagnosis'),
@@ -297,22 +360,17 @@ const neo4jController = {
               recommendation: r.get('recommendation'),
               frequency: r.get('frequency').toNumber()
             })),
-            riskDistribution: riskResult.records.map(r => ({
-              insomnia_risk: r.get('insomnia_risk'),
-              apnea_risk: r.get('apnea_risk'),
-              count: r.get('count').toNumber()
-            })),
-            dailyCases: timeResult.records.map(r => ({
-              date: r.get('date').toString(),
-              cases: r.get('daily_cases').toNumber()
-            }))
+            riskDistribution,
+            dailyCases
           },
+
           timestamp: new Date().toISOString()
         });
       } finally {
         await session.close();
       }
     } catch (error) {
+      console.error('Failed to retrieve statistics:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to retrieve statistics',
@@ -322,6 +380,7 @@ const neo4jController = {
       await neo4jClient.close();
     }
   },
+
 
   // Clear database (development only)
   async clearDatabase(req, res) {

@@ -367,27 +367,28 @@
             <p>Final Project – AI-Powered Sleep Health Assessment System</p>
             
             <div class="stats">
-                <div class="stat-card">
-                    <i class="fas fa-rules"></i>
-                    <h3>20</h3>
-                    <p>Expert Rules</p>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-stethoscope"></i>
-                    <h3>4</h3>
-                    <p>Diagnosis Types</p>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-chart-line"></i>
-                    <h3>10+</h3>
-                    <p>Health Metrics</p>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-lightbulb"></i>
-                    <h3>5</h3>
-                    <p>Recommendations</p>
-                </div>
-            </div>
+    <div class="stat-card">
+        <i class="fas fa-ruler-combined"></i>
+        <h3 id="statRulesCount">20</h3>
+        <p>Expert Rules</p>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-users"></i>
+        <h3 id="statCasesCount">0</h3>
+        <p>Recorded Cases</p>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-moon"></i>
+        <h3 id="statInsomniaHigh">0</h3>
+        <p>High Insomnia Risk</p>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-lungs"></i>
+        <h3 id="statApneaHigh">0</h3>
+        <p>High Apnea Risk</p>
+    </div>
+</div>
+
         </header>
 
         <!-- Main Content -->
@@ -476,6 +477,15 @@
                         <div id="riskBadges"></div>
                     </div>
 
+                    <div id="summaryExplanation" 
+                        style="margin-top: 1rem; padding: 1rem 1.25rem; border-radius: 8px; background: #f8f9ff; border-left: 4px solid var(--primary); font-size: 0.95rem; line-height: 1.5;">
+                        <strong>Clinical Summary:</strong>
+                        <p id="summaryText" style="margin-top: 0.5rem; color: var(--dark);">
+                            The system will provide a brief explanation of your sleep risk profile here.
+                        </p>
+                    </div>
+
+
                     <h3><i class="fas fa-exclamation-triangle"></i> Lifestyle Issues</h3>
                     <div id="lifestyleIssues"></div>
 
@@ -500,7 +510,7 @@
     <!-- Footer -->
     <footer class="footer">
         <p>Sleep Health KBS v1.0 | Knowledge-Based System for Sleep Disorder Diagnosis</p>
-        <p>© 2024 Final Project | Based on AASM, WHO, and Clinical Guidelines</p>
+        <p>© 2025 Final Project | Based on AASM, WHO, and Clinical Guidelines</p>
         <p>
             <a href="#"><i class="fas fa-file-medical"></i> Documentation</a> |
             <a href="#"><i class="fas fa-database"></i> Neo4j Integration</a> |
@@ -509,6 +519,7 @@
     </footer>
 
     <script>
+        let RULES_META = []; 
         // Update slider values in real-time
         document.getElementById('sleepDuration').addEventListener('input', function(e) {
             document.getElementById('sleepDurationValue').textContent = e.target.value + ' hours';
@@ -524,44 +535,93 @@
 
         // Initialize rules display
         function initializeRules() {
-            const rules = [
-                { id: 'R1', name: 'Insomnia High Risk', category: 'insomnia' },
-                { id: 'R2', name: 'Insomnia Moderate Risk', category: 'insomnia' },
-                { id: 'R3', name: 'Insomnia Moderate Risk', category: 'insomnia' },
-                { id: 'R4', name: 'Insomnia Low Risk', category: 'insomnia' },
-                { id: 'R5', name: 'Apnea High Risk', category: 'apnea' },
-                { id: 'R6', name: 'Apnea Moderate Risk', category: 'apnea' },
-                { id: 'R7', name: 'Apnea Moderate Risk', category: 'apnea' },
-                { id: 'R8', name: 'Apnea Low Risk', category: 'apnea' },
-                { id: 'R9', name: 'Low Activity Issue', category: 'lifestyle' },
-                { id: 'R10', name: 'High Stress Issue', category: 'lifestyle' },
-                { id: 'R11', name: 'Short Sleep Issue', category: 'lifestyle' },
-                { id: 'R12', name: 'Weight Issue', category: 'lifestyle' },
-                { id: 'R13', name: 'Diagnosis: Insomnia', category: 'diagnosis' },
-                { id: 'R14', name: 'Diagnosis: Apnea', category: 'diagnosis' },
-                { id: 'R15', name: 'Diagnosis: Mixed', category: 'diagnosis' },
-                { id: 'R16', name: 'Diagnosis: None', category: 'diagnosis' },
-                { id: 'R17', name: 'Sleep Hygiene Rec', category: 'recommendation' },
-                { id: 'R18', name: 'Physical Activity Rec', category: 'recommendation' },
-                { id: 'R19', name: 'Stress Management Rec', category: 'recommendation' },
-                { id: 'R20', name: 'Weight + Apnea Eval Rec', category: 'recommendation' }
-            ];
+    const rules = [
+        { id: 'R1', name: 'Insomnia – High Risk', category: 'insomnia',
+          explanation: 'Triggered when sleep duration is very short (<5 hours) combined with consistently poor sleep quality.' },
 
-            const rulesGrid = document.getElementById('rulesGrid');
-            rules.forEach(rule => {
-                const ruleCard = document.createElement('div');
-                ruleCard.className = 'rule-card';
-                ruleCard.innerHTML = `
-                    <div class="rule-id">${rule.id}</div>
-                    <h4>${rule.name}</h4>
-                    <p><strong>Category:</strong> ${rule.category}</p>
-                    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="testRule('${rule.id}')">
-                        <i class="fas fa-vial"></i> Test
-                    </button>
-                `;
-                rulesGrid.appendChild(ruleCard);
-            });
-        }
+        { id: 'R2', name: 'Insomnia – Moderate Risk (Duration)', category: 'insomnia',
+          explanation: 'Triggered when sleep duration is slightly below normal (5–6 hours).' },
+
+        { id: 'R3', name: 'Insomnia – Moderate Risk (Quality)', category: 'insomnia',
+          explanation: 'Triggered when sleep quality score falls within a low-to-medium range for several days.' },
+
+        { id: 'R4', name: 'Insomnia – Low Risk', category: 'insomnia',
+          explanation: 'Triggered when sleep duration and quality show minor disturbances without major contributing factors.' },
+
+        { id: 'R5', name: 'Sleep Apnea – High Risk', category: 'apnea',
+          explanation: 'Triggered when obesity and elevated blood pressure strongly indicate possible obstructive sleep apnea.' },
+
+        { id: 'R6', name: 'Sleep Apnea – Moderate Risk', category: 'apnea',
+          explanation: 'Triggered when overweight and borderline blood pressure suggest moderate apnea risk.' },
+
+        { id: 'R7', name: 'Sleep Apnea – Moderate Risk (BP)', category: 'apnea',
+          explanation: 'Triggered when blood pressure is significantly elevated even without severe BMI issues.' },
+
+        { id: 'R8', name: 'Sleep Apnea – Low Risk', category: 'apnea',
+          explanation: 'Triggered when only mild indicators of apnea are present, such as slightly elevated BMI.' },
+
+        { id: 'R9', name: 'Low Physical Activity Issue', category: 'lifestyle',
+          explanation: 'Triggered when daily activity level falls below WHO recommendations (<30 minutes/day).' },
+
+        { id: 'R10', name: 'High Stress Issue', category: 'lifestyle',
+          explanation: 'Triggered when stress levels are high (≥7), increasing risk for insomnia and poor sleep quality.' },
+
+        { id: 'R11', name: 'Short Sleep Issue', category: 'lifestyle',
+          explanation: 'Triggered when sleep duration is below 6 hours, increasing risk for multiple sleep-related problems.' },
+
+        { id: 'R12', name: 'Weight Issue', category: 'lifestyle',
+          explanation: 'Triggered when BMI indicates overweight or obesity, which contributes to apnea and poor sleep quality.' },
+
+        { id: 'R13', name: 'Diagnosis: Insomnia', category: 'diagnosis',
+          explanation: 'Assigned when sleep duration/quality disturbances and stress indicators support insomnia criteria.' },
+
+        { id: 'R14', name: 'Diagnosis: Sleep Apnea', category: 'diagnosis',
+          explanation: 'Assigned when strong indicators of apnea are present, especially obesity + high blood pressure.' },
+
+        { id: 'R15', name: 'Diagnosis: Mixed Disorder', category: 'diagnosis',
+          explanation: 'Assigned when both insomnia and apnea indicators are simultaneously moderate or high.' },
+
+        { id: 'R16', name: 'Diagnosis: Normal / No Disorder', category: 'diagnosis',
+          explanation: 'Assigned when no significant indicators of insomnia or apnea are detected.' },
+
+        { id: 'R17', name: 'Recommendation: Sleep Hygiene', category: 'recommendation',
+          explanation: 'Recommends improving sleep habits such as consistent sleep schedule and reduced nighttime screen use.' },
+
+        { id: 'R18', name: 'Recommendation: Physical Activity', category: 'recommendation',
+          explanation: 'Encourages increased physical activity to improve sleep quality and reduce fatigue.' },
+
+        { id: 'R19', name: 'Recommendation: Stress Management', category: 'recommendation',
+          explanation: 'Suggests relaxation techniques such as breathing exercises, meditation, or mindfulness.' },
+
+        { id: 'R20', name: 'Recommendation: Weight & Apnea Evaluation', category: 'recommendation',
+          explanation: 'Encourages further evaluation for potential apnea and weight management strategies.' }
+    ];
+
+    RULES_META = rules;
+
+    const rulesGrid = document.getElementById('rulesGrid');
+    rulesGrid.innerHTML = '';
+
+    rules.forEach(rule => {
+        const ruleCard = document.createElement('div');
+        ruleCard.className = 'rule-card';
+        ruleCard.setAttribute('data-rule-id', rule.id);
+
+        ruleCard.innerHTML = `
+            <div class="rule-id">${rule.id}</div>
+            <h4>${rule.name}</h4>
+            <p><strong>Category:</strong> ${rule.category}</p>
+            <p style="font-size: 0.85rem; color: var(--gray); margin-top: 0.25rem;">
+                ${rule.explanation}
+            </p>
+            <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="testRule('${rule.id}')">
+                <i class="fas fa-vial"></i> Test
+            </button>
+        `;
+        rulesGrid.appendChild(ruleCard);
+    });
+}
+
 
         // Run diagnosis
         async function runDiagnosis() {
@@ -605,6 +665,111 @@
             }
         }
 
+ const ISSUE_LABELS = {
+    lowActivity: 'low physical activity',
+    highStress: 'high stress level',
+    shortSleep: 'short sleep duration',
+    weightIssue: 'overweight or obesity'
+};
+
+
+    function buildSummaryText(data) {
+    const risks = data.results?.risks || {};
+    const issues = data.results?.lifestyleIssues || {};
+
+    const insomnia = risks.insomnia || 'low';
+    const apnea = risks.apnea || 'low';
+
+    // --- 1) Risk sentence ---
+    const riskParts = [];
+    if (insomnia !== 'low') riskParts.push(`a ${insomnia.toUpperCase()} risk of INSOMNIA`);
+    if (apnea !== 'low') riskParts.push(`a ${apnea.toUpperCase()} risk of SLEEP APNEA`);
+
+    let riskSentence = '';
+    if (riskParts.length === 0) {
+        riskSentence = 'no significant risk of insomnia or sleep apnea.';
+    } else {
+        riskSentence = riskParts.join(' and ') + '.';
+    }
+
+    // --- 2) Lifestyle factors ---
+    const activeIssues = Object.entries(issues)
+        .filter(([_, v]) => v)
+        .map(([key]) => ISSUE_LABELS[key]);
+
+    let issueSentence = '';
+    if (activeIssues.length > 0) {
+        issueSentence = `Key contributing lifestyle factors include ${activeIssues.join(', ')}. `;
+    } else {
+        issueSentence = 'No major lifestyle-related contributing factors were detected. ';
+    }
+
+    // --- 3) Recommendation remark ---
+    let recSentence = '';
+    if (insomnia === 'high' || apnea === 'high') {
+        recSentence = 'Further clinical evaluation and consistent implementation of recommendations are strongly advised.';
+    } else if (insomnia === 'moderate' || apnea === 'moderate') {
+        recSentence = 'Lifestyle adjustments based on the recommendations provided may help lower the risk.';
+    } else {
+        recSentence = 'Maintain healthy sleep habits and monitor sleep patterns regularly.';
+    }
+
+    return `Based on the assessment, the system identifies ${riskSentence} ` +
+           issueSentence +
+           recSentence;
+}
+
+async function loadStatistics() {
+    try {
+        const res = await fetch('/api/neo4j/stats');
+        if (!res.ok) {
+            throw new Error('Failed to fetch statistics');
+        }
+
+        const stats = await res.json();
+        if (!stats.success) {
+            throw new Error(stats.error || 'Statistics not available');
+        }
+
+        // Rules count
+        const rulesEl = document.getElementById('statRulesCount');
+        if (rulesEl) {
+            const fromBackend = typeof stats.rulesCount === 'number' ? stats.rulesCount : null;
+            const fromMeta = Array.isArray(RULES_META) ? RULES_META.length : null;
+            rulesEl.textContent = fromBackend || fromMeta || 20;
+        }
+
+        // Total cases
+        const casesEl = document.getElementById('statCasesCount');
+        if (casesEl) {
+            casesEl.textContent = stats.totalCases ?? 0;
+        }
+
+        // Insomnia high risk
+        const insHighEl = document.getElementById('statInsomniaHigh');
+        if (insHighEl) {
+            const insomniaRisk = stats.insomniaRisk || {};
+            insHighEl.textContent = insomniaRisk.high ?? 0;
+        }
+
+        // Apnea high risk
+        const apneaHighEl = document.getElementById('statApneaHigh');
+        if (apneaHighEl) {
+            const apneaRisk = stats.apneaRisk || {};
+            apneaHighEl.textContent = apneaRisk.high ?? 0;
+        }
+
+    } catch (err) {
+        console.warn('Failed to load statistics:', err.message);
+
+        // Fallback: at least show rules count from RULES_META
+        const rulesEl = document.getElementById('statRulesCount');
+        if (rulesEl && Array.isArray(RULES_META) && RULES_META.length > 0) {
+            rulesEl.textContent = RULES_META.length;
+        }
+    }
+}
+
         // Display results
         function displayResults(data) {
             document.getElementById('resultsPlaceholder').style.display = 'none';
@@ -612,6 +777,12 @@
 
             // Update diagnosis
             document.getElementById('diagnosisText').textContent = data.diagnosis;
+
+            // Update clinical summary
+            const summaryEl = document.getElementById('summaryText'); // Ensure this element exists
+            if (summaryEl) {        
+                summaryEl.textContent = buildSummaryText(data);
+            }
 
             // Update risk badges
             const riskBadges = document.getElementById('riskBadges');
@@ -665,22 +836,47 @@
                 recList.appendChild(li);
             });
 
-            // Update fired rules
-            const rulesDiv = document.getElementById('firedRules');
-            rulesDiv.innerHTML = '';
-            
-            data.rules.fired.forEach(ruleId => {
-                const ruleCard = document.querySelector(`.rule-card:has(.rule-id:contains("${ruleId}"))`);
-                if (ruleCard) {
-                    ruleCard.classList.add('active');
-                }
-                
-                const span = document.createElement('span');
-                span.className = 'rule-id';
-                span.style.marginRight = '0.5rem';
-                span.textContent = ruleId;
-                rulesDiv.appendChild(span);
-            });
+// Update fired rules
+const rulesDiv = document.getElementById('firedRules');
+rulesDiv.innerHTML = '';
+
+// reset highlight semua rule-card dulu
+document.querySelectorAll('.rule-card').forEach(card => {
+    card.classList.remove('active');
+});
+
+data.rules.fired.forEach(ruleId => {
+    // highlight card yang sesuai
+    const card = document.querySelector(`.rule-card[data-rule-id="${ruleId}"]`);
+    if (card) {
+        card.classList.add('active');
+    }
+
+    // cari metadata rule
+    const meta = RULES_META.find(r => r.id === ruleId);
+
+    // tampilkan penjelasan rule fired
+    const wrapper = document.createElement('div');
+    wrapper.style.marginBottom = '0.75rem';
+    wrapper.style.display = 'flex';
+    wrapper.style.alignItems = 'flex-start';
+    wrapper.style.gap = '0.5rem';
+
+    const badge = document.createElement('span');
+    badge.className = 'rule-id';
+    badge.textContent = ruleId;
+
+    const text = document.createElement('span');
+    text.style.fontSize = '0.9rem';
+    text.textContent = meta
+        ? `${meta.name} — ${meta.explanation}`
+        : 'Fired rule (detail not found).';
+
+    wrapper.appendChild(badge);
+    wrapper.appendChild(text);
+    rulesDiv.appendChild(wrapper);
+});
+
 
             // Scroll to results
             document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth' });
@@ -703,7 +899,10 @@
         }
 
         // Initialize on load
-        document.addEventListener('DOMContentLoaded', initializeRules);
+        document.addEventListener('DOMContentLoaded', () => {
+    initializeRules();
+    loadStatistics();
+});
     </script>
 </body>
 </html>

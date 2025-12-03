@@ -12,64 +12,91 @@ const neo4jRoutes = require('./server/routes/neo4j');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'"]
+/**
+ * 1) SECURITY & BASIC MIDDLEWARE
+ */
+
+// Security headers + simple CSP (biar font & icon CDN tetap jalan)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "default-src": ["'self'"],
+        "script-src": [
+          "'self'",
+          "'unsafe-inline'",
+          "https://cdnjs.cloudflare.com",
+          "https://cdn.jsdelivr.net"
+        ],
+        "style-src": [
+          "'self'",
+          "'unsafe-inline'",
+          "https://fonts.googleapis.com",
+          "https://cdnjs.cloudflare.com"
+        ],
+        "font-src": [
+          "'self'",
+          "https://fonts.gstatic.com",
+          "https://cdnjs.cloudflare.com"
+        ],
+        "img-src": ["'self'", "data:"]
+      }
     }
-  }
-}));
+  })
+);
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+// CORS – sebenarnya tidak terlalu perlu kalau satu origin,
+// tapi tidak apa-apa dibiarkan longgar untuk dev.
+app.use(cors());
+
+// Rate limit khusus endpoint /api (biar ga bisa di-spam)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 menit
+  max: 100,                 // max 100 request / IP / window
+  standardHeaders: true,
+  legacyHeaders: false,
 });
-app.use('/api/', limiter);
+app.use('/api', apiLimiter);
 
-// CORS configuration
-const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CLIENT_URL 
-    : 'http://localhost:3000',
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-app.use(cors(corsOptions));
-
-// Logging
-app.use(morgan('combined'));
-
-// Body parsing
+// Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// API Routes
+// Logging HTTP (skip saat test)
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('dev'));
+}
+
+/**
+ * 2) API ROUTES
+ */
+
 app.use('/api/diagnosis', diagnosisRoutes);
 app.use('/api/neo4j', neo4jRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
+/**
+ * 3) FRONTEND STATIC (SATU PORT)
+ *
+ * Serve file dari client/public lewat Express
+ * sehingga app bisa diakses dari http://localhost:5000
+ */
+
+const publicPath = path.join(__dirname, 'client', 'public');
+app.use(express.static(publicPath));
+
+// Semua request non-API diarahkan ke index.html (SPA-style)
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'client/build')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-  });
-}
+/**
+ * 4) ERROR HANDLER
+ */
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
@@ -78,11 +105,15 @@ app.use((err, req, res, next) => {
   });
 });
 
+/**
+ * 5) START SERVER
+ */
+
 app.listen(PORT, () => {
-  console.log(`
-  🚀 Sleep Health KBS Server running!
-  📡 Port: ${PORT}
-  🌐 Environment: ${process.env.NODE_ENV || 'development'}
-  📊 Neo4j: ${process.env.NEO4J_URI || 'Not configured'}
-  `);
+  console.log("\n==============================================");
+  console.log("🚀 Sleep Health KBS Server is running!");
+  console.log(`🌐 Open the app: http://localhost:${PORT}`);  
+  console.log("📁 Ready for development");
+  console.log("==============================================\n");
 });
+
