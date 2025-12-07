@@ -1,0 +1,94 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Calendar, Clock, AlertCircle, CheckCircle, Stethoscope } from 'lucide-react';
+import { format } from 'date-fns';
+
+const RecentScreenings = ({ screenings }) => {
+  const getRiskColor = (risk) => {
+    switch (risk?.toLowerCase()) {
+      case 'high': return 'text-red-400';
+      case 'moderate': return 'text-yellow-400';
+      case 'low': return 'text-green-400';
+      default: return 'text-gray-400';
+    }
+  };
+
+  const getDiagnosisIcon = (diagnosis) => {
+    if (diagnosis.includes('No Sleep')) {
+      return <CheckCircle className="w-5 h-5 text-green-400" />;
+    }
+    return <AlertCircle className="w-5 h-5 text-yellow-400" />;
+  };
+
+  return (
+    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-white">Recent Screenings</h2>
+        <Link
+          to="/history"
+          className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+        >
+          View all →
+        </Link>
+      </div>
+
+      <div className="space-y-4">
+        {screenings?.map((screening, index) => (
+          <Link
+            key={index}
+            to={`/results?id=${screening.id}`}
+            className="block p-4 bg-gray-900/50 rounded-lg hover:bg-gray-800/70 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {getDiagnosisIcon(screening.diagnosis)}
+                <div>
+                  <h3 className="font-medium text-white">{screening.diagnosis}</h3>
+                  <div className="flex items-center space-x-4 text-sm text-gray-400 mt-1">
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="w-4 h-4" />
+                      <span>{format(new Date(screening.createdAt), 'MMM d, yyyy')}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{format(new Date(screening.createdAt), 'h:mm a')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <div className="flex items-center space-x-3">
+                  <div>
+                    <p className="text-sm text-gray-400">Insomnia</p>
+                    <p className={`font-medium ${getRiskColor(screening.insomniaRisk)}`}>
+                      {screening.insomniaRisk}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Apnea</p>
+                    <p className={`font-medium ${getRiskColor(screening.apneaRisk)}`}>
+                      {screening.apneaRisk}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Link>
+        ))}
+
+        {(!screenings || screenings.length === 0) && (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center">
+              <Stethoscope className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-gray-400">No screenings yet</p>
+            <p className="text-sm text-gray-500 mt-1">Start your first screening to see results here</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default RecentScreenings;

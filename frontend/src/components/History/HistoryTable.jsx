@@ -1,0 +1,198 @@
+import React, { useState } from 'react';
+import {
+  Calendar,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  Download,
+  Trash2,
+  Eye
+} from 'lucide-react';
+import { format } from 'date-fns';
+import toast from 'react-hot-toast';
+import api from '../../utils/api';
+import Button from '../Common/Button';
+
+const HistoryTable = ({ screenings, onRefresh }) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleExport = async (screeningId) => {
+    try {
+      const response = await api.get(`/screening/export?id=${screeningId}`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `screening-${screeningId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success('Report downloaded successfully');
+    } catch (error) {
+      toast.error('Failed to download report');
+    }
+  };
+
+  const handleDelete = async (screeningId) => {
+    if (!window.confirm('Are you sure you want to delete this screening?')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      await api.delete(`/screening/${screeningId}`);
+      toast.success('Screening deleted successfully');
+      onRefresh?.();
+    } catch (error) {
+      toast.error('Failed to delete screening');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getRiskColor = (risk) => {
+    switch (risk?.toLowerCase()) {
+      case 'high': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'moderate': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case 'low': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
+
+  const getDiagnosisIcon = (diagnosis) => {
+    if (diagnosis.includes('No Sleep')) {
+      return <CheckCircle className="w-4 h-4 text-green-400" />;
+    }
+    return <AlertCircle className="w-4 h-4 text-yellow-400" />;
+  };
+
+  if (!screenings || screenings.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center">
+          <AlertCircle className="w-8 h-8 text-gray-400" />
+        </div>
+        <p className="text-gray-400">No screening history found</p>
+        <p className="text-sm text-gray-500 mt-1">Start your first screening to see history here</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-700/50">
+      <table className="min-w-full divide-y divide-gray-700/50">
+        <thead className="bg-gray-800/50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+              Date & Time
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+              Diagnosis
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+              Risk Levels
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+              Recommendations
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-700/50 bg-gray-900/30">
+          {screenings.map((screening) => (
+            <tr key={screening.id} className="hover:bg-gray-800/50 transition-colors">
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <div>
+                    <div className="text-sm text-white">
+                      {format(new Date(screening.createdAt), 'MMM d, yyyy')}
+                    </div>
+                    <div className="text-xs text-gray-400 flex items-center">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {format(new Date(screening.createdAt), 'h:mm a')}
+                    </div>
+                  </div>
+                </div>
+              </td>
+              
+              <td className="px-6 py-4">
+                <div className="flex items-center space-x-2">
+                  {getDiagnosisIcon(screening.diagnosis)}
+                  <span className="text-sm font-medium text-white">
+                    {screening.diagnosis}
+                  </span>
+                </div>
+              </td>
+              
+              <td className="px-6 py-4">
+                <div className="flex space-x-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getRiskColor(screening.insomniaRisk)}`}>
+                    Insomnia: {screening.insomniaRisk}
+                  </span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getRiskColor(screening.apneaRisk)}`}>
+                    Apnea: {screening.apneaRisk}
+                  </span>
+                </div>
+              </td>
+              
+              <td className="px-6 py-4">
+                <div className="flex flex-wrap gap-1">
+                  {screening.recommendations?.slice(0, 2).map((rec, index) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-blue-500/10 text-blue-400 rounded text-xs"
+                    >
+                      {rec.replace('REC_', '').replace('_', ' ')}
+                    </span>
+                  ))}
+                  {screening.recommendations?.length > 2 && (
+                    <span className="px-2 py-1 bg-gray-700 text-gray-400 rounded text-xs">
+                      +{screening.recommendations.length - 2} more
+                    </span>
+                  )}
+                </div>
+              </td>
+              
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="small"
+                    onClick={() => window.location.href = `/results?id=${screening.id}`}
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="small"
+                    onClick={() => handleExport(screening.id)}
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                  
+                  <Button
+                    variant="danger"
+                    size="small"
+                    onClick={() => handleDelete(screening.id)}
+                    disabled={loading}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+export default HistoryTable;
