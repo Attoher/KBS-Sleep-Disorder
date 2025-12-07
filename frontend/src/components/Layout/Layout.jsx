@@ -5,7 +5,7 @@ import Sidebar from './Sidebar';
 
 const Layout = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black">
+    <div className="min-h-screen app-bg text-primary">
       <Header />
       <div className="flex">
         <Sidebar />

@@ -22,18 +22,19 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-gray-900 border-r border-gray-800">
+    <aside className="hidden md:flex flex-col w-64 surface border-r border-app text-primary">
       <div className="flex-1 p-4">
         <nav className="space-y-2">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
+              title={item.label}
               className={({ isActive }) =>
                 `flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-gradient-to-r from-blue-900/50 to-purple-900/50 text-blue-300 border-l-4 border-blue-500'
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-gray-300'
+                    ? 'pill text-white border-l-0'
+                    : 'text-secondary hover:bg-slate-100 hover:text-primary'
                 }`
               }
             >
@@ -43,14 +44,15 @@ const Sidebar = () => {
           ))}
         </nav>
 
-        <div className="mt-8 pt-6 border-t border-gray-800">
+        <div className="mt-8 pt-6 border-t border-app">
           <NavLink
             to="/settings"
+            title="Settings"
             className={({ isActive }) =>
               `flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive
-                  ? 'bg-gray-800 text-gray-300'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-gray-300'
+                  ? 'pill text-white'
+                  : 'text-secondary hover:bg-slate-100 hover:text-primary'
               }`
             }
           >
@@ -60,11 +62,12 @@ const Sidebar = () => {
           
           <NavLink
             to="/help"
+            title="Help & Support"
             className={({ isActive }) =>
               `flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive
-                  ? 'bg-gray-800 text-gray-300'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-gray-300'
+                  ? 'pill text-white'
+                  : 'text-secondary hover:bg-slate-100 hover:text-primary'
               }`
             }
           >
@@ -74,10 +77,11 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t border-app">
         <button
           onClick={logout}
-          className="flex items-center space-x-3 w-full px-4 py-3 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+          title="Logout"
+          className="flex items-center space-x-3 w-full px-4 py-3 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
         >
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Logout</span>

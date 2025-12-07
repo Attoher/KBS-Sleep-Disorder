@@ -9,16 +9,18 @@ const Button = ({
   size = 'medium',
   disabled = false,
   loading = false,
+  ariaLabel,
+  title,
   className = '',
   ...props 
 }) => {
-  const baseStyles = 'font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles = 'font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
   
   const variants = {
-    primary: 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white focus:ring-blue-500',
-    secondary: 'bg-gray-800 hover:bg-gray-700 text-gray-300 focus:ring-gray-500',
-    danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
-    outline: 'border border-gray-700 hover:bg-gray-800 text-gray-300 focus:ring-gray-500',
+    primary: 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white focus:ring-blue-500 focus:ring-offset-transparent',
+    secondary: 'surface text-primary border border-app hover:shadow-sm focus:ring-blue-500 focus:ring-offset-transparent',
+    danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500 focus:ring-offset-transparent',
+    outline: 'border border-app text-primary hover:bg-slate-100 focus:ring-blue-500 focus:ring-offset-transparent',
   };
   
   const sizes = {
@@ -33,6 +35,8 @@ const Button = ({
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
+      aria-label={ariaLabel || (typeof children === 'string' ? children : undefined)}
+      title={title || (typeof children === 'string' ? children : undefined)}
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}
     >
