@@ -37,6 +37,30 @@ docker run -d -p 3000:80 --name frontend sleep-health-frontend
 - Auth uses React Context (user state) and Zustand (token persistence).
 - Protected routes use `PrivateRoute`; guest mode is allowed on dashboard/screening/results, full auth required for history/analytics.
 - `start.ps1` and `health-check.ps1` are available for Windows helpers; use manual commands above if you prefer.
+- **NEW**: UI Showcase system available at `/showcase` - no backend required, perfect for design review and offline development.
+
+## UI Showcase & Developer Tools
+
+### Quick Access
+- **Welcome Page**: `http://localhost:5173/welcome` - Main entry point
+- **Showcase Hub**: `http://localhost:5173/showcase` - All pages gallery
+- **Components**: `http://localhost:5173/components` - Component library & docs
+- **API Docs**: `http://localhost:5173/api-docs` - REST API reference
+
+### No Backend Required
+All showcase pages work completely offline without any backend connection. Perfect for:
+- 🎨 UI/UX Design Reviews
+- 📱 Responsive Testing
+- 👥 Client Presentations
+- 🎓 Onboarding Developers
+- 📊 Design System Documentation
+
+### Documentation
+- `QUICK_START.md` - 30-second setup guide
+- `DEVELOPER_GUIDE.md` - Complete feature overview
+- `ROUTES_INDEX.md` - All routes and navigation structure
+- `SHOWCASE_README.md` - Showcase system details
+- `IMPLEMENTATION_SUMMARY.md` - What was created
 
 ## Project Layout
 ```

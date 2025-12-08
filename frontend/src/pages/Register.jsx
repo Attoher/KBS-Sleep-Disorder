@@ -47,6 +47,13 @@ const Register = () => {
 
   return (
     <div className="min-h-screen app-bg flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 left-4">
+        <Link to="/welcome" title="Back to welcome page">
+          <Button variant="outline" size="small">
+            ← Back
+          </Button>
+        </Link>
+      </div>
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
@@ -226,9 +233,15 @@ const Register = () => {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-sm text-secondary">
+          <p className="text-sm text-secondary mb-3">
             © {new Date().getFullYear()} Sleep Health KBS. All rights reserved.
           </p>
+          <Link 
+            to="/showcase" 
+            className="text-xs text-blue-400 hover:text-blue-300 hover:underline"
+          >
+            🎨 View UI Showcase
+          </Link>
         </div>
       </motion.div>
     </div>

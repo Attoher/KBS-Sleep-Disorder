@@ -14,6 +14,11 @@ import History from './pages/History';
 import ScreeningForm from './pages/ScreeningForm';
 import Results from './pages/Results';
 import Analytics from './pages/Analytics';
+import UIShowcase from './pages/UIShowcase';
+import ShowcaseResults from './pages/ShowcaseResults';
+import LandingPage from './pages/LandingPage';
+import ComponentLibrary from './pages/ComponentLibrary';
+import APIDocumentation from './pages/APIDocumentation';
 
 function App() {
   return (
@@ -32,8 +37,16 @@ function App() {
             }}
           />
           <Routes>
+            {/* Public Routes */}
+            <Route path="/welcome" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            
+            {/* UI Showcase Routes (No Backend Required) */}
+            <Route path="/showcase" element={<UIShowcase />} />
+            <Route path="/showcase/results" element={<ShowcaseResults />} />
+            <Route path="/components" element={<ComponentLibrary />} />
+            <Route path="/api-docs" element={<APIDocumentation />} />
             
             <Route element={<Layout />}>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
