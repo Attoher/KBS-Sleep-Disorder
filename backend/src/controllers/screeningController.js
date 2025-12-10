@@ -138,17 +138,23 @@ class ScreeningController {
         filters
       );
       
+      console.log('🔍 Controller received pagination:', result.pagination);
+      
       // Get statistics
       const stats = await neo4jScreeningService.getUserScreeningStats(userId);
       
-      res.json({
+      const responseData = {
         success: true,
         data: {
           screenings: result.screenings,
           pagination: result.pagination,
           statistics: stats
         }
-      });
+      };
+      
+      console.log('📤 Sending response pagination:', responseData.data.pagination);
+      
+      res.json(responseData);
       
     } catch (error) {
       console.error('Get history error:', error);

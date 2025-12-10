@@ -19,7 +19,7 @@ const History = () => {
   const [screenings, setScreenings] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: 5,
     total: 0,
     pages: 0
   });
@@ -29,7 +29,7 @@ const History = () => {
     startDate: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
     endDate: format(new Date(), 'yyyy-MM-dd'),
     page: 1,
-    limit: 10,
+    limit: 5,
   });
 
   useEffect(() => {
@@ -59,7 +59,12 @@ const History = () => {
       setScreenings(formattedScreenings);
       
       if (data.pagination) {
-        setPagination(data.pagination);
+        // Backend sends 'totalPages' but we use 'pages' in frontend
+        const normalizedPagination = {
+          ...data.pagination,
+          pages: data.pagination.totalPages || data.pagination.pages || 1
+        };
+        setPagination(normalizedPagination);
       }
     } catch (error) {
       console.error('Failed to fetch history:', error);
@@ -116,7 +121,12 @@ const History = () => {
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+    setFilters(prev => ({ 
+      ...prev, 
+      [key]: value, 
+      // Only reset page to 1 if changing filters, not when changing page itself
+      page: key === 'page' ? value : 1 
+    }));
   };
 
   if (loading && !screenings.length) {
@@ -210,6 +220,7 @@ const History = () => {
               <option value="Insomnia">Insomnia</option>
               <option value="Sleep Apnea">Sleep Apnea</option>
               <option value="Mixed Sleep Disorder">Mixed Sleep Disorder</option>
+              <option value="Unspecified / Inconclusive">Unspecified / Inconclusive</option>
               <option value="No Sleep Disorder">No Sleep Disorder</option>
             </select>
           </div>
@@ -275,7 +286,7 @@ const History = () => {
       </motion.div>
 
       {/* Pagination */}
-      {pagination.total > 0 && pagination.pages > 1 && (
+      {screenings.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -283,7 +294,10 @@ const History = () => {
           className="flex items-center justify-between bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6"
         >
           <div className="text-sm text-gray-400">
-            Page <span className="text-white font-semibold">{pagination.page}</span> of <span className="text-white font-semibold">{pagination.pages}</span>
+            Showing <span className="text-white font-semibold">{Math.min(pagination.limit * (pagination.page - 1) + 1, pagination.total || screenings.length)}</span>-<span className="text-white font-semibold">{Math.min(pagination.limit * pagination.page, pagination.total || screenings.length)}</span> of <span className="text-white font-semibold">{pagination.total || screenings.length}</span> results
+            {pagination.pages > 1 && (
+              <span className="ml-2">(Page {pagination.page} of {pagination.pages})</span>
+            )}
           </div>
           <div className="flex space-x-2 items-center">
             <Button
@@ -291,32 +305,36 @@ const History = () => {
               size="small"
               onClick={() => handleFilterChange('page', Math.max(1, filters.page - 1))}
               disabled={pagination.page === 1}
+              className="min-w-[100px]"
             >
               ← Previous
             </Button>
-            <div className="flex items-center space-x-2 px-4 py-2 bg-gray-900 rounded-lg">
-              {Array.from({ length: Math.min(5, pagination.pages) }).map((_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handleFilterChange('page', pageNum)}
-                    className={`w-8 h-8 rounded transition-colors ${
-                      pagination.page === pageNum
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
+            {pagination.pages > 1 && (
+              <div className="flex items-center space-x-2 px-4 py-2 bg-gray-900 rounded-lg">
+                {Array.from({ length: Math.min(5, pagination.pages) }).map((_, i) => {
+                  const pageNum = i + 1;
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handleFilterChange('page', pageNum)}
+                      className={`w-8 h-8 rounded transition-colors ${
+                        pagination.page === pageNum
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <Button
               variant="outline"
               size="small"
-              onClick={() => handleFilterChange('page', filters.page + 1)}
-              disabled={pagination.page >= pagination.pages}
+              onClick={() => handleFilterChange('page', Math.min(pagination.pages || 1, filters.page + 1))}
+              disabled={pagination.page >= (pagination.pages || 1)}
+              className="min-w-[100px]"
             >
               Next →
             </Button>

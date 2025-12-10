@@ -99,8 +99,8 @@ const Dashboard = () => {
       const analyticsResponse = await api.get('/analytics/overview?timeframe=today');
       const analytics = analyticsResponse.data.data;
       
-      // Fetch recent screenings
-      const screeningsResponse = await api.get('/history?limit=5');
+      // Fetch all screenings for accurate stats calculation
+      const screeningsResponse = await api.get('/history');
       const screenings = screeningsResponse.data.data.screenings || [];
       
       // Calculate dynamic stats from analytics
@@ -109,7 +109,7 @@ const Dashboard = () => {
       setDynamicStats(stats);
       setDashboardData({
         stats: analytics.statistics,
-        recentScreenings: screenings,
+        recentScreenings: screenings.slice(0, 5), // Show only 5 most recent
         analytics: analytics
       });
       

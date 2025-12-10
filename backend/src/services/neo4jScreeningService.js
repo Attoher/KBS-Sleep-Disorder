@@ -141,7 +141,19 @@ class Neo4jScreeningService {
         `;
         
         const response = await tx.run(countQuery, params);
-        return response.records.length > 0 ? response.records[0].get('total').low : 0;
+        if (response.records.length === 0) {
+          console.log('📊 No records found for count query');
+          return 0;
+        }
+        
+        const totalValue = response.records[0].get('total');
+        // Handle Neo4j integer object
+        const count = totalValue && typeof totalValue === 'object' && 'low' in totalValue 
+          ? totalValue.low 
+          : (typeof totalValue === 'number' ? totalValue : 0);
+        
+        console.log('📊 Total screenings count:', count, 'for userId:', personId, '(raw:', totalValue, ')');
+        return count;
       });
       
       // Get screenings with filters
@@ -185,14 +197,18 @@ class Neo4jScreeningService {
         });
       });
       
+      const paginationData = {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalResult,
+        totalPages: Math.ceil(totalResult / limit) || 1
+      };
+      
+      console.log('📄 Returning pagination:', paginationData);
+      
       return {
         screenings,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: totalResult,
-          totalPages: Math.ceil(totalResult / limit) || 1
-        }
+        pagination: paginationData
       };
     } catch (error) {
       console.error('Error getting user screenings:', error);
