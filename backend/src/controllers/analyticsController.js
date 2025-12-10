@@ -114,8 +114,8 @@ class AnalyticsController {
             todayCases: dashboardStats.todayCases || 0,
             avgRulesFired: parseFloat(dashboardStats.avgRulesFired || 0).toFixed(1),
             mostCommonDiagnosis: dashboardStats.mostCommonDiagnosis || 'N/A',
-            totalRulesFired: ruleFrequency.reduce((sum, rule) => sum + rule.frequency, 0),
-            uniqueRulesFired: ruleFrequency.length,
+            totalRulesFired: ruleFrequency.length > 0 ? ruleFrequency.reduce((sum, rule) => sum + rule.frequency, 0) : 'N/A',
+            uniqueRulesFired: ruleFrequency.length || 'N/A',
             ...dashboardStats
           },
           

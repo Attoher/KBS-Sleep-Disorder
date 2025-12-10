@@ -126,96 +126,121 @@ class Neo4jService {
     }
   }
 
-  // Get rule firing statistics
+  // Get rule firing statistics - FROM SCREENING FACTS
   async getRuleFiringPatterns(userId = null) {
     const session = this.driver.session();
     
     try {
-      let query = `
-        MATCH (c:Case)-[:FIRED_RULE]->(r:Rule)
-        WITH r.ruleId as ruleId, COUNT(c) as frequency
-        RETURN ruleId, frequency
-        ORDER BY frequency DESC
-        LIMIT 20
-      `;
-      
+      let query = `MATCH (s:Screening) WHERE s.facts IS NOT NULL RETURN s.facts as factsStr LIMIT 1000`;
       const params = {};
       
       if (userId) {
-        query = `
-          MATCH (p:Person {personId: $personId})-[:HAS_CASE]->(c:Case)-[:FIRED_RULE]->(r:Rule)
-          WITH r.ruleId as ruleId, COUNT(c) as frequency
-          RETURN ruleId, frequency
-          ORDER BY frequency DESC
-          LIMIT 20
-        `;
+        query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.facts IS NOT NULL RETURN s.facts as factsStr LIMIT 1000`;
         params.personId = `USER_${userId}`;
       }
       
       const result = await session.run(query, params);
       
-      return result.records.map(record => ({
-        ruleId: record.get('ruleId') || 'Unknown',
-        frequency: record.get('frequency')?.low || 0,
-        diagnoses: [],
-        avgOrder: 1.5
-      }));
+      // Parse facts from all screenings and count rules
+      const ruleCounts = {};
+      
+      result.records.forEach(record => {
+        try {
+          const factsStr = record.get('factsStr');
+          if (factsStr) {
+            const facts = typeof factsStr === 'string' ? JSON.parse(factsStr) : factsStr;
+            if (facts.firedRules && Array.isArray(facts.firedRules)) {
+              facts.firedRules.forEach(ruleId => {
+                ruleCounts[ruleId] = (ruleCounts[ruleId] || 0) + 1;
+              });
+            }
+          }
+        } catch (e) {
+          // Skip parsing errors silently
+        }
+      });
+      
+      // Convert to array and sort by frequency
+      const rulesArray = Object.entries(ruleCounts)
+        .map(([ruleId, frequency]) => ({
+          ruleId,
+          frequency,
+          diagnoses: [],
+          avgOrder: 1.5
+        }))
+        .sort((a, b) => b.frequency - a.frequency)
+        .slice(0, 20);
+      
+      console.log('📊 Rule firing patterns:', rulesArray);
+      return rulesArray.length > 0 ? rulesArray : [];
     } catch (error) {
       console.error('Error fetching rule firing patterns:', error);
-      return [
-        { ruleId: 'R1', frequency: 15, diagnoses: ['Insomnia'], avgOrder: 1.2 },
-        { ruleId: 'R5', frequency: 12, diagnoses: ['Sleep Apnea'], avgOrder: 2.5 },
-        { ruleId: 'R9', frequency: 10, diagnoses: ['Mixed Sleep Disorder'], avgOrder: 3.1 }
-      ];
+      return [];
     } finally {
       await session.close();
     }
   }
 
-  // Get common diagnosis paths
+  // Get common diagnosis paths - FROM SCREENING FACTS
   async getCommonDiagnosisPaths(userId = null) {
     const session = this.driver.session();
     
     try {
-      let query = `
-        MATCH (c:Case)-[:FIRED_RULE]->(r:Rule)
-        WITH c, COLLECT(r.ruleId) as rulePath
-        MATCH (c)-[:HAS_DIAGNOSIS]->(d:Diagnosis)
-        WITH rulePath, d.name as diagnosis, COUNT(c) as count
-        RETURN diagnosis, rulePath, count
-        ORDER BY count DESC
-        LIMIT 10
-      `;
-      
+      let query = `MATCH (s:Screening) WHERE s.facts IS NOT NULL AND s.diagnosis IS NOT NULL RETURN s.facts as factsStr, s.diagnosis as diagnosis LIMIT 1000`;
       const params = {};
       
       if (userId) {
-        query = `
-          MATCH (p:Person {personId: $personId})-[:HAS_CASE]->(c:Case)-[:FIRED_RULE]->(r:Rule)
-          WITH c, COLLECT(r.ruleId) as rulePath
-          MATCH (c)-[:HAS_DIAGNOSIS]->(d:Diagnosis)
-          WITH rulePath, d.name as diagnosis, COUNT(c) as count
-          RETURN diagnosis, rulePath, count
-          ORDER BY count DESC
-          LIMIT 10
-        `;
+        query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.facts IS NOT NULL AND s.diagnosis IS NOT NULL RETURN s.facts as factsStr, s.diagnosis as diagnosis LIMIT 1000`;
         params.personId = `USER_${userId}`;
       }
       
       const result = await session.run(query, params);
       
-      return result.records.map(record => ({
-        diagnosis: record.get('diagnosis') || 'Unknown',
-        rulePath: record.get('rulePath') || [],
-        count: record.get('count')?.low || 0
-      }));
+      // Group rules by diagnosis
+      const pathsByDiagnosis = {};
+      
+      result.records.forEach(record => {
+        try {
+          const factsStr = record.get('factsStr');
+          const diagnosis = record.get('diagnosis');
+          
+          if (factsStr && diagnosis) {
+            const facts = typeof factsStr === 'string' ? JSON.parse(factsStr) : factsStr;
+            const rulePath = facts.firedRules || [];
+            
+            if (!pathsByDiagnosis[diagnosis]) {
+              pathsByDiagnosis[diagnosis] = {};
+            }
+            
+            // Convert rulePath array to key for counting
+            const pathKey = rulePath.join(',');
+            pathsByDiagnosis[diagnosis][pathKey] = (pathsByDiagnosis[diagnosis][pathKey] || 0) + 1;
+          }
+        } catch (e) {
+          // Skip parsing errors
+        }
+      });
+      
+      // Convert to array format for API
+      const patterns = [];
+      Object.entries(pathsByDiagnosis).forEach(([diagnosis, paths]) => {
+        Object.entries(paths).forEach(([pathKey, count]) => {
+          const rulePath = pathKey ? pathKey.split(',') : [];
+          patterns.push({
+            diagnosis,
+            rulePath: rulePath.filter(r => r.trim()), // Remove empty strings
+            count
+          });
+        });
+      });
+      
+      // Sort by count and limit
+      return patterns
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
     } catch (error) {
       console.error('Error fetching common diagnosis paths:', error);
-      return [
-        { diagnosis: 'Insomnia', rulePath: ['R1', 'R3', 'R13'], count: 8 },
-        { diagnosis: 'Sleep Apnea', rulePath: ['R5', 'R14'], count: 6 },
-        { diagnosis: 'Mixed Sleep Disorder', rulePath: ['R1', 'R5', 'R15'], count: 4 }
-      ];
+      return [];
     } finally {
       await session.close();
     }
@@ -361,28 +386,34 @@ class Neo4jService {
   async getDiagnosisDistribution(userId = null) {
     const session = this.driver.session();
     
-    try {
-      let query = `MATCH (s:Screening) WHERE s.diagnosis IS NOT NULL`;
-      const params = {};
-      
-      if (userId) {
-        query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.diagnosis IS NOT NULL`;
-        params.personId = `USER_${userId}`;
-      }
-      
+      try {
       const result = await session.run(`
-        ${query}
+        MATCH (s:Screening) WHERE s.diagnosis IS NOT NULL
         RETURN 
           s.diagnosis as diagnosis,
           COUNT(s) as count
         ORDER BY count DESC
         LIMIT 10
-      `, params);
+      `);
       
-      return result.records.map(record => ({
-        diagnosis: record.get('diagnosis') || 'Unknown',
-        count: record.get('count').low || 0
-      }));
+      console.log('📊 Diagnosis Distribution query result:', result.records.length, 'records');
+      
+      const data = result.records.map(record => {
+        const countVal = record.get('count');
+        let count = 0;
+        if (countVal && typeof countVal === 'object' && 'low' in countVal) {
+          count = countVal.low;
+        } else if (typeof countVal === 'number') {
+          count = countVal;
+        }
+        return {
+          diagnosis: record.get('diagnosis') || 'Unknown',
+          count: parseInt(count) || 0
+        };
+      });
+      
+      console.log('📊 Diagnosis Distribution data:', data);
+      return data;
     } catch (error) {
       console.error('Error fetching diagnosis distribution:', error);
       return [
@@ -421,20 +452,32 @@ class Neo4jService {
         LIMIT 12
       `, params);
       
+      console.log('📊 Monthly Trends query result:', result.records.length, 'records');
+      
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       
-      return result.records.map(record => {
+      const data = result.records.map(record => {
         const dateStr = record.get('month');
         let monthName = 'Unknown';
         if (dateStr) {
           const monthNum = new Date(dateStr).getMonth();
           monthName = months[monthNum] || 'Unknown';
         }
+        const countVal = record.get('count');
+        let count = 0;
+        if (countVal && typeof countVal === 'object' && 'low' in countVal) {
+          count = countVal.low;
+        } else if (typeof countVal === 'number') {
+          count = countVal;
+        }
         return {
           month: monthName,
-          count: record.get('count').low || 0
+          count: parseInt(count) || 0
         };
       }).reverse();
+      
+      console.log('📊 Monthly Trends data:', data);
+      return data;
     } catch (error) {
       console.error('Error fetching monthly trends:', error);
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
