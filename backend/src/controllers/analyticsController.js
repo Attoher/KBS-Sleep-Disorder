@@ -69,7 +69,9 @@ class AnalyticsController {
       const userId = req.user?.id;
       const { timeframe = 'all' } = req.query;
       
-      // Get all analytics data
+      console.log('📊 Analytics request for userId:', userId);
+      
+      // Get all analytics data - pass userId for user-specific data
       const [
         ruleFrequency, 
         rulePatterns, 
@@ -80,15 +82,17 @@ class AnalyticsController {
         riskDistribution,
         topRecommendations
       ] = await Promise.all([
-        neo4jService.getRuleFiringPatterns(),
-        neo4jService.getCommonDiagnosisPaths(),
-        neo4jService.getDashboardStats(),
-        neo4jService.getRuleNetwork(),
-        neo4jService.getDiagnosisDistribution(),
-        neo4jService.getMonthlyTrends(),
-        neo4jService.getRiskDistribution(),
-        neo4jService.getTopRecommendations()
+        neo4jService.getRuleFiringPatterns(userId),
+        neo4jService.getCommonDiagnosisPaths(userId),
+        neo4jService.getDashboardStats(userId),
+        neo4jService.getRuleNetwork(userId),
+        neo4jService.getDiagnosisDistribution(userId),
+        neo4jService.getMonthlyTrends(userId),
+        neo4jService.getRiskDistribution(userId),
+        neo4jService.getTopRecommendations(userId)
       ]);
+      
+      console.log('📊 Dashboard stats received:', dashboardStats);
       
       res.json({
         success: true,
