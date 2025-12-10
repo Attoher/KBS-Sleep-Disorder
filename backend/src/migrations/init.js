@@ -3,16 +3,16 @@ const User = require('../models/User');
 const Screening = require('../models/Screening');
 
 async function initDatabase() {
-  console.log('🔧 Starting database initialization...');
+  console.log('[SETUP] Starting database initialization...');
   
   try {
     // Test connection
     await sequelize.authenticate();
-    console.log('✅ Database connection established');
+    console.log('[SUCCESS] Database connection established');
     
     // Sync all models (creates tables if they don't exist)
     await sequelize.sync({ force: false, alter: true });
-    console.log('✅ Database models synchronized');
+    console.log('[SUCCESS] Database models synchronized');
     
     // Create indexes
     await sequelize.query(`
@@ -27,7 +27,7 @@ async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_screenings_apnea_risk ON "Screenings" ("apneaRisk");
     `);
     
-    console.log('✅ Database indexes created');
+    console.log('[SUCCESS] Database indexes created');
     
     // Check if admin user exists, create if not
     const adminExists = await User.findOne({ where: { email: 'admin@sleephealth.com' } });
@@ -39,13 +39,13 @@ async function initDatabase() {
         password: 'Admin@123',
         role: 'admin'
       });
-      console.log('✅ Default admin user created');
+      console.log('[SUCCESS] Default admin user created');
     }
     
-    console.log('🎉 Database initialization completed successfully!');
+    console.log('[COMPLETE] Database initialization completed successfully!');
     
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    console.error('[ERROR] Database initialization failed:', error);
     throw error;
   }
 }
@@ -54,11 +54,11 @@ async function initDatabase() {
 if (require.main === module) {
   initDatabase()
     .then(() => {
-      console.log('✅ Migration completed');
+      console.log('[SUCCESS] Migration completed');
       process.exit(0);
     })
     .catch((error) => {
-      console.error('❌ Migration failed:', error);
+      console.error('[ERROR] Migration failed:', error);
       process.exit(1);
     });
 }

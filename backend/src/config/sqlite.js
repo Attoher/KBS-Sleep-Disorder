@@ -18,8 +18,8 @@ const sqliteDb = new Sequelize({
 // Test connection
 if (process.env.DEMO_MODE !== 'true') {
   sqliteDb.authenticate()
-    .then(() => console.log('✅ SQLite connected successfully'))
-    .catch(err => console.error('❌ SQLite connection error:', err));
+    .then(() => console.log('[SUCCESS] SQLite connected successfully'))
+    .catch(err => console.error('[ERROR] SQLite connection error:', err));
 }
 
 module.exports = sqliteDb;

@@ -8,6 +8,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const DEMO_MODE = process.env.DEMO_MODE === 'true';
+const ALLOW_OFFLINE = process.env.ALLOW_OFFLINE === 'true';
 
 // Import database connections
 const sqliteDb = require('./src/config/sqlite');
@@ -75,36 +76,38 @@ app.use((err, req, res, next) => {
 // Database connection and server start
 async function startServer() {
   try {
-    if (!DEMO_MODE) {
+    if (!DEMO_MODE && !ALLOW_OFFLINE) {
       // Test SQLite connection (for authentication)
       await sqliteDb.authenticate();
-      console.log('✅ SQLite connection established successfully.');
+      console.log('[SUCCESS] SQLite connection established successfully.');
       
       // Sync User model
       await sqliteDb.sync({ alter: true });
-      console.log('✅ User model synchronized with SQLite.');
+      console.log('[SUCCESS] User model synchronized with SQLite.');
       
       // Initialize Neo4j schema (for screening data)
       await initNeo4jSchema();
-      console.log('✅ Neo4j schema initialized.');
+      console.log('[SUCCESS] Neo4j schema initialized.');
+    } else if (ALLOW_OFFLINE) {
+      console.warn('[WARNING] OFFLINE mode enabled: skipping database initialization.');
     } else {
-      console.warn('⚠️  DEMO_MODE enabled: skipping SQLite and Neo4j initialization.');
+      console.warn('[WARNING] DEMO_MODE enabled: skipping SQLite and Neo4j initialization.');
     }
     
     // Start server
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-      console.log('🗄️  Architecture: SQLite (Auth) + Neo4j (Screening Data)');
+      console.log(`[STARTUP] Server running on port ${PORT}`);
+      console.log(`[DOCS] API Documentation: http://localhost:${PORT}/api-docs`);
+      console.log('[ARCHITECTURE] SQLite (Auth) + Neo4j (Screening Data)');
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    if (process.env.ALLOW_OFFLINE === 'true') {
-      console.warn('⚠️  Starting in offline mode due to startup failure. DB/Neo4j unavailable.');
+    console.error('[ERROR] Failed to start server:', error);
+    if (ALLOW_OFFLINE) {
+      console.warn('[WARNING] Starting in offline mode due to startup failure. DB/Neo4j unavailable.');
       const PORT = process.env.PORT || 5000;
       app.listen(PORT, () => {
-        console.log(`🚀 Server running in OFFLINE mode on port ${PORT}`);
+        console.log(`[STARTUP] Server running in OFFLINE mode on port ${PORT}`);
       });
     } else {
       process.exit(1);

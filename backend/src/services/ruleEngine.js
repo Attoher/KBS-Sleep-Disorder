@@ -19,7 +19,7 @@ class RuleEngine {
         action: (facts) => {
           facts.insomnia_risk = 'high';
           facts.firedRules.push('R1');
-          console.log('🟡 R1 fired: insomnia_risk = high');
+          console.log('[RULE] R1 fired: insomnia_risk = high');
         }
       },
       {
@@ -33,7 +33,7 @@ class RuleEngine {
         action: (facts) => {
           facts.insomnia_risk = 'moderate';
           facts.firedRules.push('R2');
-          console.log('🟡 R2 fired: insomnia_risk = moderate');
+          console.log('[RULE] R2 fired: insomnia_risk = moderate');
         }
       },
       {
@@ -47,7 +47,7 @@ class RuleEngine {
         action: (facts) => {
           facts.insomnia_risk = 'moderate';
           facts.firedRules.push('R3');
-          console.log('🟡 R3 fired: insomnia_risk = moderate');
+          console.log('[RULE] R3 fired: insomnia_risk = moderate');
         }
       },
       {
@@ -62,7 +62,7 @@ class RuleEngine {
         action: (facts) => {
           facts.insomnia_risk = 'low';
           facts.firedRules.push('R4');
-          console.log('🟡 R4 fired: insomnia_risk = low');
+          console.log('[RULE] R4 fired: insomnia_risk = low');
         }
       },
 
@@ -78,7 +78,7 @@ class RuleEngine {
         action: (facts) => {
           facts.apnea_risk = 'high';
           facts.firedRules.push('R5');
-          console.log('🟡 R5 fired: apnea_risk = high');
+          console.log('[RULE] R5 fired: apnea_risk = high');
         }
       },
       {
@@ -92,7 +92,7 @@ class RuleEngine {
         action: (facts) => {
           facts.apnea_risk = 'moderate';
           facts.firedRules.push('R6');
-          console.log('🟡 R6 fired: apnea_risk = moderate');
+          console.log('[RULE] R6 fired: apnea_risk = moderate');
         }
       },
       {
@@ -106,7 +106,7 @@ class RuleEngine {
         action: (facts) => {
           facts.apnea_risk = 'moderate';
           facts.firedRules.push('R7');
-          console.log('🟡 R7 fired: apnea_risk = moderate');
+          console.log('[RULE] R7 fired: apnea_risk = moderate');
         }
       },
       {
@@ -120,7 +120,7 @@ class RuleEngine {
         action: (facts) => {
           facts.apnea_risk = 'low';
           facts.firedRules.push('R8');
-          console.log('🟡 R8 fired: apnea_risk = low');
+          console.log('[RULE] R8 fired: apnea_risk = low');
         }
       },
 
@@ -135,7 +135,7 @@ class RuleEngine {
         action: (facts) => {
           facts.lifestyle_issue_activity = true;
           facts.firedRules.push('R9');
-          console.log('🟡 R9 fired: lifestyle_issue_activity = true');
+          console.log('[RULE] R9 fired: lifestyle_issue_activity = true');
         }
       },
       {
@@ -148,7 +148,7 @@ class RuleEngine {
         action: (facts) => {
           facts.lifestyle_issue_stress = true;
           facts.firedRules.push('R10');
-          console.log('🟡 R10 fired: lifestyle_issue_stress = true');
+          console.log('[RULE] R10 fired: lifestyle_issue_stress = true');
         }
       },
       {
@@ -161,7 +161,7 @@ class RuleEngine {
         action: (facts) => {
           facts.lifestyle_issue_sleep = true;
           facts.firedRules.push('R11');
-          console.log('🟡 R11 fired: lifestyle_issue_sleep = true');
+          console.log('[RULE] R11 fired: lifestyle_issue_sleep = true');
         }
       },
       {
@@ -174,7 +174,7 @@ class RuleEngine {
         action: (facts) => {
           facts.lifestyle_issue_weight = true;
           facts.firedRules.push('R12');
-          console.log('🟡 R12 fired: lifestyle_issue_weight = true');
+          console.log('[RULE] R12 fired: lifestyle_issue_weight = true');
         }
       },
 
@@ -193,7 +193,7 @@ class RuleEngine {
         action: (facts) => {
           facts.diagnosis_insomnia = true;
           facts.firedRules.push('R13');
-          console.log('🟡 R13 fired: diagnosis_insomnia = true');
+          console.log('[RULE] R13 fired: diagnosis_insomnia = true');
         }
       },
       {
@@ -209,7 +209,7 @@ class RuleEngine {
         action: (facts) => {
           facts.diagnosis_apnea = true;
           facts.firedRules.push('R14');
-          console.log('🟡 R14 fired: diagnosis_apnea = true');
+          console.log('[RULE] R14 fired: diagnosis_apnea = true');
         }
       },
       {
@@ -223,7 +223,7 @@ class RuleEngine {
         action: (facts) => {
           facts.diagnosis_mixed = true;
           facts.firedRules.push('R15');
-          console.log('🟡 R15 fired: diagnosis_mixed = true');
+          console.log('[RULE] R15 fired: diagnosis_mixed = true');
         }
       },
       {
@@ -245,7 +245,7 @@ class RuleEngine {
         action: (facts) => {
           facts.diagnosis_none = true;
           facts.firedRules.push('R16');
-          console.log('🟡 R16 fired: diagnosis_none = true');
+          console.log('[RULE] R16 fired: diagnosis_none = true');
         }
       },
 
@@ -264,7 +264,7 @@ class RuleEngine {
             facts.recommendations.push('REC_SLEEP_HYGIENE');
           }
           facts.firedRules.push('R17');
-          console.log('🟡 R17 fired: add REC_SLEEP_HYGIENE');
+          console.log('[RULE] R17 fired: add REC_SLEEP_HYGIENE');
         }
       },
       {
@@ -279,7 +279,7 @@ class RuleEngine {
             facts.recommendations.push('REC_PHYSICAL_ACTIVITY');
           }
           facts.firedRules.push('R18');
-          console.log('🟡 R18 fired: add REC_PHYSICAL_ACTIVITY');
+          console.log('[RULE] R18 fired: add REC_PHYSICAL_ACTIVITY');
         }
       },
       {
@@ -294,7 +294,7 @@ class RuleEngine {
             facts.recommendations.push('REC_STRESS_MANAGEMENT');
           }
           facts.firedRules.push('R19');
-          console.log('🟡 R19 fired: add REC_STRESS_MANAGEMENT');
+          console.log('[RULE] R19 fired: add REC_STRESS_MANAGEMENT');
         }
       },
       {
@@ -314,7 +314,7 @@ class RuleEngine {
             facts.recommendations.push('REC_APNEA_EVAL');
           }
           facts.firedRules.push('R20');
-          console.log('🟡 R20 fired: add REC_WEIGHT_MANAGEMENT + REC_APNEA_EVAL');
+          console.log('[RULE] R20 fired: add REC_WEIGHT_MANAGEMENT + REC_APNEA_EVAL');
         }
       }
     ];
@@ -322,7 +322,7 @@ class RuleEngine {
 
   // Preprocess input data
   preprocessInput(rawInput) {
-    console.log('🔧 Preprocessing input data...');
+    console.log('[SETUP] Preprocessing input data...');
     
     const facts = { ...rawInput };
     
@@ -367,7 +367,7 @@ class RuleEngine {
     facts.lifestyle_issue_sleep = false;
     facts.lifestyle_issue_weight = false;
     
-    console.log('✅ Preprocessing complete:', {
+    console.log('[SUCCESS] Preprocessing complete:', {
       sleepDuration: facts.sleepDuration,
       sleepQuality: facts.sleepQuality,
       stressLevel: facts.stressLevel,
@@ -415,7 +415,7 @@ class RuleEngine {
     }
     
     if (iteration >= maxIterations) {
-      console.warn('⚠️  Maximum iterations reached');
+      console.warn('[WARNING] Maximum iterations reached');
     }
     
     // Determine final diagnosis

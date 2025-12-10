@@ -22,7 +22,7 @@ class Neo4jScreeningService {
     });
     
     try {
-      console.log('📊 Creating screening in Neo4j...');
+      console.log('[NEO4J] Creating screening in Neo4j...');
       
       const personId = `USER_${userId}`;
       
@@ -85,11 +85,11 @@ class Neo4jScreeningService {
         return { screeningId, personId };
       });
       
-      console.log(`✅ Screening ${screeningId} created successfully`);
+      console.log(`[SUCCESS] Screening ${screeningId} created successfully`);
       return screeningId;
       
     } catch (error) {
-      console.error('❌ Error creating screening:', error);
+      console.error('[ERROR] Error creating screening:', error);
       throw error;
     } finally {
       await session.close();
@@ -142,7 +142,7 @@ class Neo4jScreeningService {
         
         const response = await tx.run(countQuery, params);
         if (response.records.length === 0) {
-          console.log('📊 No records found for count query');
+          console.log('[INFO] No records found for count query');
           return 0;
         }
         
@@ -152,7 +152,7 @@ class Neo4jScreeningService {
           ? totalValue.low 
           : (typeof totalValue === 'number' ? totalValue : 0);
         
-        console.log('📊 Total screenings count:', count, 'for userId:', personId, '(raw:', totalValue, ')');
+        console.log('[INFO] Total screenings count:', count, 'for userId:', personId, '(raw:', totalValue, ')');
         return count;
       });
       
@@ -204,7 +204,7 @@ class Neo4jScreeningService {
         totalPages: Math.ceil(totalResult / limit) || 1
       };
       
-      console.log('📄 Returning pagination:', paginationData);
+      console.log('[INFO] Returning pagination:', paginationData);
       
       return {
         screenings,
@@ -259,6 +259,12 @@ class Neo4jScreeningService {
           inputData: JSON.parse(screening.inputData || '{}'),
           facts: JSON.parse(screening.facts || '{}'),
           recommendations: JSON.parse(screening.recommendations || '[]'),
+          lifestyleIssues: {
+            activity: JSON.parse(screening.facts || '{}').lifestyle_issue_activity || false,
+            stress: JSON.parse(screening.facts || '{}').lifestyle_issue_stress || false,
+            sleep: JSON.parse(screening.facts || '{}').lifestyle_issue_sleep || false,
+            weight: JSON.parse(screening.facts || '{}').lifestyle_issue_weight || false
+          },
           timestamp: displayTime
         };
       });
@@ -277,7 +283,7 @@ class Neo4jScreeningService {
     const session = this.driver.session();
     
     try {
-      console.log(`✅ Screening ${screeningId} deleted`);
+      console.log(`[SUCCESS] Screening ${screeningId} deleted`);
       
       const personId = `USER_${userId}`;
       

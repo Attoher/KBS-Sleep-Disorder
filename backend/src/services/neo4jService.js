@@ -7,7 +7,7 @@ class Neo4jService {
 
   // Log a case to Neo4j
   async logCase(personId, inputData, facts, firedRules) {
-    console.log('📊 Logging case to Neo4j...');
+    console.log('[NEO4J] Logging case to Neo4j...');
     
     const session = this.driver.session();
     const caseId = `CASE_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -114,11 +114,11 @@ class Neo4jService {
       // Commit transaction
       await tx.commit();
       
-      console.log(`✅ Case ${caseId} logged to Neo4j successfully`);
+      console.log(`[SUCCESS] Case ${caseId} logged to Neo4j successfully`);
       return caseId;
       
     } catch (error) {
-      console.error('❌ Neo4j logging error:', error);
+      console.error('[ERROR] Neo4j logging error:', error);
       await tx?.rollback();
       throw error;
     } finally {
@@ -171,7 +171,7 @@ class Neo4jService {
         .sort((a, b) => b.frequency - a.frequency)
         .slice(0, 20);
       
-      console.log('📊 Rule firing patterns:', rulesArray);
+      console.log('[INFO] Rule firing patterns:', rulesArray);
       return rulesArray.length > 0 ? rulesArray : [];
     } catch (error) {
       console.error('Error fetching rule firing patterns:', error);
@@ -251,7 +251,7 @@ class Neo4jService {
     const session = this.driver.session();
     
     try {
-      console.log('📊 getDashboardStats query for:', userId || 'ALL USERS');
+      console.log('[QUERY] getDashboardStats query for:', userId || 'ALL USERS');
       
       const params = {};
       let baseQuery = `MATCH (s:Screening)`;
@@ -305,7 +305,7 @@ class Neo4jService {
         avgRulesFired: parseFloat(avgValue || 0).toFixed(1)
       };
       
-      console.log('📊 Returning dashboard stats:', stats);
+      console.log('[INFO] Returning dashboard stats:', stats);
       return stats;
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -404,7 +404,7 @@ class Neo4jService {
         LIMIT 10
       `, params);
       
-      console.log('📊 Diagnosis Distribution query result:', result.records.length, 'records');
+      console.log('[QUERY] Diagnosis Distribution query result:', result.records.length, 'records');
       
       const data = result.records.map(record => {
         const countVal = record.get('count');
@@ -420,7 +420,7 @@ class Neo4jService {
         };
       });
       
-      console.log('📊 Diagnosis Distribution data:', data);
+      console.log('[INFO] Diagnosis Distribution data:', data);
       return data;
     } catch (error) {
       console.error('Error fetching diagnosis distribution:', error);
@@ -459,7 +459,7 @@ class Neo4jService {
         ORDER BY month ASC
       `, params);
       
-      console.log('📊 Monthly Trends query result:', result.records.length, 'records');
+      console.log('[QUERY] Monthly Trends query result:', result.records.length, 'records');
       
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       
@@ -493,7 +493,7 @@ class Neo4jService {
         };
       });
       
-      console.log('📊 Monthly Trends data:', data);
+      console.log('[INFO] Monthly Trends data:', data);
       return data;
     } catch (error) {
       console.error('Error fetching monthly trends:', error);

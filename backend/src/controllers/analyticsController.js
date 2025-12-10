@@ -69,7 +69,7 @@ class AnalyticsController {
       const userId = req.user?.id;
       const { timeframe = 'all' } = req.query;
       
-      console.log('📊 Analytics request for userId:', userId);
+      console.log('[ANALYTICS] Analytics request for userId:', userId);
       
       // Get all analytics data - pass userId for user-specific data
       const [
@@ -92,7 +92,7 @@ class AnalyticsController {
         neo4jService.getTopRecommendations(userId)
       ]);
       
-      console.log('📊 Dashboard stats received:', dashboardStats);
+      console.log('[ANALYTICS] Dashboard stats received:', dashboardStats);
       
       res.json({
         success: true,

@@ -226,10 +226,10 @@ const Results = () => {
     datasets: [
       {
         data: [
-          results.lifestyleIssues.sleep ? 1 : 0,
-          results.lifestyleIssues.stress ? 1 : 0,
-          results.lifestyleIssues.activity ? 1 : 0,
-          results.lifestyleIssues.weight ? 1 : 0
+          results.lifestyleIssues?.sleep ? 1 : 0,
+          results.lifestyleIssues?.stress ? 1 : 0,
+          results.lifestyleIssues?.activity ? 1 : 0,
+          results.lifestyleIssues?.weight ? 1 : 0
         ],
         backgroundColor: [
           '#8b5cf6',
@@ -466,29 +466,38 @@ const Results = () => {
             className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-6"
           >
             <h2 className="text-xl font-bold text-white mb-6">Lifestyle Issues</h2>
-            <div className="h-64">
-              <Doughnut 
-                data={lifestyleData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'bottom',
-                      labels: {
-                        color: '#9ca3af',
-                        padding: 20
+            {lifestyleData.datasets[0].data.some(val => val > 0) ? (
+              <div className="h-64">
+                <Doughnut 
+                  data={lifestyleData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'bottom',
+                        labels: {
+                          color: '#9ca3af',
+                          padding: 20
+                        }
                       }
                     }
-                  }
-                }}
-              />
-            </div>
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="h-64 flex items-center justify-center">
+                <div className="text-center">
+                  <CheckCircle size={48} className="mx-auto mb-4 text-green-400" />
+                  <p className="text-gray-300">No lifestyle issues detected</p>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4 mt-6">
               {Object.entries(results.lifestyleIssues || {}).map(([key, value]) => (
                 <div key={key} className="text-center p-3 bg-gray-800/50 rounded-lg">
                   <div className={`text-2xl font-bold mb-2 ${value ? 'text-red-400' : 'text-green-400'}`}>
-                    {value ? '⚠️' : '✅'}
+                    {value ? <AlertTriangle size={24} /> : <CheckCircle size={24} />}
                   </div>
                   <div className="text-sm text-gray-300 capitalize">
                     {key.replace('Issue', '')}

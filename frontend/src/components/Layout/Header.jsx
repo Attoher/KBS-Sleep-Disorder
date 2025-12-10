@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Moon, Sun, Bell, BellOff, User, Eye } from 'lucide-react';
+import { Moon, Sun, Bell, BellOff, User, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import toast from 'react-hot-toast';
@@ -22,12 +22,13 @@ const Header = () => {
   const handleBellToggle = () => {
     setNotificationsEnabled(!notificationsEnabled);
     if (!notificationsEnabled) {
-      toast.success('Notifications enabled ✅', {
-        icon: '🔔',
+      toast.success('Notifications enabled', {
+        icon: <CheckCircle size={20} />,
         duration: 2000,
       });
     } else {
-      toast('Notifications disabled 🔕', {
+      toast('Notifications disabled', {
+        icon: <XCircle size={20} />,
         duration: 2000,
       });
     }

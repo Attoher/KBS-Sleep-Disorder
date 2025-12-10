@@ -33,10 +33,10 @@ const sequelize = new Sequelize(
 // Avoid noisy connection attempts unless explicitly enabled
 if (!DEMO_MODE && POSTGRES_ENABLED) {
   sequelize.authenticate()
-    .then(() => console.log('✅ PostgreSQL connected successfully'))
-    .catch(err => console.error('❌ PostgreSQL connection error:', err));
+    .then(() => console.log('[SUCCESS] PostgreSQL connected successfully'))
+    .catch(err => console.error('[ERROR] PostgreSQL connection error:', err));
 } else {
-  console.warn('⚠️  PostgreSQL init skipped (set ENABLE_POSTGRES=true to enable).');
+  console.warn('[WARNING] PostgreSQL init skipped (set ENABLE_POSTGRES=true to enable)').
 }
 
 module.exports = sequelize;

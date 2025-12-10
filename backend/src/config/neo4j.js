@@ -23,7 +23,7 @@ async function initNeo4jSchema() {
   const session = driver.session();
   
   try {
-    console.log('🔧 Initializing Neo4j schema...');
+    console.log('[SETUP] Initializing Neo4j schema...');
     
     // Create constraints for uniqueness
     await session.executeWrite(async tx => {
@@ -63,9 +63,9 @@ async function initNeo4jSchema() {
       `);
     });
     
-    console.log('✅ Neo4j schema initialized successfully');
+    console.log('[SUCCESS] Neo4j schema initialized successfully');
   } catch (error) {
-    console.error('❌ Neo4j schema initialization failed:', error);
+    console.error('[ERROR] Neo4j schema initialization failed:', error);
     throw error;
   } finally {
     await session.close();
@@ -77,10 +77,10 @@ async function testNeo4jConnection() {
   const session = driver.session();
   try {
     const result = await session.run('RETURN 1 as connection_test');
-    console.log('✅ Neo4j connection established successfully');
+    console.log('[SUCCESS] Neo4j connection established successfully');
     return true;
   } catch (error) {
-    console.error('❌ Neo4j connection failed:', error);
+    console.error('[ERROR] Neo4j connection failed:', error);
     return false;
   } finally {
     await session.close();
@@ -90,7 +90,7 @@ async function testNeo4jConnection() {
 // Close driver connection
 async function closeNeo4jDriver() {
   await driver.close();
-  console.log('✅ Neo4j driver closed');
+  console.log('[SUCCESS] Neo4j driver closed');
 }
 
 module.exports = {

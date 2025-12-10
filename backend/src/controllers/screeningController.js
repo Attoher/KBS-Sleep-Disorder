@@ -15,7 +15,7 @@ class ScreeningController {
       const isGuest = !userId;
       const logToNeo4j = inputData.log_to_neo4j !== false;
       
-      console.log('🎯 Processing screening request...');
+      console.log('[SCREENING] Processing screening request...');
       console.log('   User ID:', userId || 'Guest');
       
       // Run rule engine inference
@@ -31,11 +31,11 @@ class ScreeningController {
         diagnosis: results.diagnosis,
         insomniaRisk: results.insomnia_risk || 'unknown',
         apneaRisk: results.apnea_risk || 'unknown',
-        lifestyleIssues: results.lifestyleIssues || {
-          sleep: false,
-          stress: false,
-          activity: false,
-          weight: false
+        lifestyleIssues: {
+          activity: results.lifestyle_issue_activity || false,
+          stress: results.lifestyle_issue_stress || false,
+          sleep: results.lifestyle_issue_sleep || false,
+          weight: results.lifestyle_issue_weight || false
         },
         recommendations: results.recommendations || [],
         firedRules: results.firedRules || [],
@@ -51,7 +51,7 @@ class ScreeningController {
           await neo4jService.logCase(`USER_${userId}`, inputData, results, results.firedRules || []);
           console.log('   Neo4j Screening ID:', screeningId);
         } catch (neo4jError) {
-          console.error('⚠️  Neo4j save failed:', neo4jError.message);
+          console.error('[WARNING] Neo4j save failed:', neo4jError.message);
         }
       }
       
@@ -68,7 +68,7 @@ class ScreeningController {
       });
       
     } catch (error) {
-      console.error('❌ Screening processing error:', error);
+      console.error('[ERROR] Screening processing error:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to process screening. Please try again.',
@@ -138,7 +138,7 @@ class ScreeningController {
         filters
       );
       
-      console.log('🔍 Controller received pagination:', result.pagination);
+      console.log('[CONTROLLER] Controller received pagination:', result.pagination);
       
       // Get statistics
       const stats = await neo4jScreeningService.getUserScreeningStats(userId);
@@ -152,7 +152,7 @@ class ScreeningController {
         }
       };
       
-      console.log('📤 Sending response pagination:', responseData.data.pagination);
+      console.log('[RESPONSE] Sending response pagination:', responseData.data.pagination);
       
       res.json(responseData);
       
@@ -187,6 +187,12 @@ class ScreeningController {
             diagnosis: 'Mixed Sleep Disorder (Insomnia + Sleep Apnea)',
             insomniaRisk: 'high',
             apneaRisk: 'moderate',
+            lifestyleIssues: {
+              sleep: true,
+              stress: true,
+              activity: false,
+              weight: true
+            },
             inputData: {
               age: 45,
               sleepDuration: 4.5,

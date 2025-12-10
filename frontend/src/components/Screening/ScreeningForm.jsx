@@ -121,7 +121,7 @@ const ScreeningForm = () => {
         log_to_neo4j: formData.log_to_neo4j !== false // Ensure this is sent
       };
       
-      console.log('📤 Submitting screening data:', {
+      console.log('[DATA] Submitting screening data:', {
         hasAuth: !!localStorage.getItem('authToken'),
         log_to_neo4j: submissionData.log_to_neo4j,
         dataKeys: Object.keys(submissionData)
@@ -129,7 +129,7 @@ const ScreeningForm = () => {
       
       const response = await api.post('/screening/process', submissionData);
       
-      console.log('✅ Screening response:', response.data);
+      console.log('[SUCCESS] Screening response:', response.data);
       
       toast.success('Screening completed successfully!');
       
@@ -141,7 +141,7 @@ const ScreeningForm = () => {
         } 
       });
     } catch (error) {
-      console.error('❌ Screening error:', error.response?.data || error.message);
+      console.error('[ERROR] Screening error:', error.response?.data || error.message);
       const errorMessage = error.response?.data?.error || error.response?.data?.errors?.[0] || 'Screening failed';
       toast.error(errorMessage);
     } finally {
