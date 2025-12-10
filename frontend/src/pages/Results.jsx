@@ -455,6 +455,50 @@ const Results = () => {
               </div>
             </motion.div>
           )}
+
+          {/* Triggered Medical Rules */}
+          {results.firedRules && results.firedRules.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
+            >
+              <h2 className="text-2xl font-bold text-white mb-6">Triggered Medical Rules</h2>
+              <div className="flex flex-wrap gap-2">
+                {results.firedRules.map((rule, index) => (
+                  <span
+                    key={index}
+                    className="px-4 py-2 bg-blue-500/10 text-blue-400 rounded-full text-sm font-medium border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                  >
+                    {rule}
+                  </span>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Screening Input Data */}
+          {results.inputData && Object.keys(results.inputData).length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
+            >
+              <h2 className="text-2xl font-bold text-white mb-6">Screening Input Data</h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(results.inputData).map(([key, value]) => (
+                  <div key={key} className="p-4 bg-gray-800/50 rounded-lg border border-gray-700/30">
+                    <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </p>
+                    <p className="text-white font-semibold text-lg">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* Right Column - Analytics */}

@@ -13,7 +13,7 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import Button from '../Common/Button';
 
-const HistoryTable = ({ screenings, onRefresh }) => {
+const HistoryTable = ({ screenings, onRefresh, onDownloadReport }) => {
   const [loading, setLoading] = useState(false);
 
   // Helper function to safely format dates
@@ -30,22 +30,30 @@ const HistoryTable = ({ screenings, onRefresh }) => {
     }
   };
 
-  const handleExport = async (screeningId) => {
+  const handleExport = async (screening) => {
     try {
-      const response = await api.get(`/screening/export?id=${screeningId}`, {
-        responseType: 'blob'
-      });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `screening-${screeningId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      
-      toast.success('Report downloaded successfully');
+      if (onDownloadReport) {
+        // Use parent component's download function
+        onDownloadReport(screening);
+        toast.success('Report downloaded successfully');
+      } else {
+        // Fallback: try API call
+        const response = await api.get(`/screening/export?id=${screening.screeningId}`, {
+          responseType: 'blob'
+        });
+        
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `screening-${screening.screeningId}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        
+        toast.success('Report downloaded successfully');
+      }
     } catch (error) {
+      console.error('Download error:', error);
       toast.error('Failed to download report');
     }
   };
@@ -186,7 +194,8 @@ const HistoryTable = ({ screenings, onRefresh }) => {
                   <Button
                     variant="outline"
                     size="small"
-                    onClick={() => handleExport(screening.screeningId)}
+                    onClick={() => handleExport(screening)}
+                    title="Download screening report"
                   >
                     <Download className="w-4 h-4" />
                   </Button>
