@@ -36,7 +36,7 @@ if (!DEMO_MODE && POSTGRES_ENABLED) {
     .then(() => console.log('[SUCCESS] PostgreSQL connected successfully'))
     .catch(err => console.error('[ERROR] PostgreSQL connection error:', err));
 } else {
-  console.warn('[WARNING] PostgreSQL init skipped (set ENABLE_POSTGRES=true to enable)').
+  console.warn('[WARNING] PostgreSQL init skipped (set ENABLE_POSTGRES=true to enable)');
 }
 
 module.exports = sequelize;
