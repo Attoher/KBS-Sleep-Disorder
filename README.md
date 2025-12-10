@@ -1,64 +1,219 @@
-# RSBP Sleep Health KBS
+# RSBP Sleep Health Knowledge-Based System
 
-Full-stack knowledge-based system for sleep health screening with React (frontend) and Express/Sequelize/Neo4j (backend). Supports dual database writes (PostgreSQL + Neo4j) and a demo/offline mode for frontend testing without databases.
+A full-stack knowledge-based system for sleep health screening and diagnosis. Built with React (frontend) and Express/PostgreSQL/Neo4j (backend), featuring a forward-chaining rule inference engine with 40+ medical rules for sleep disorder detection.
 
-## Repository Layout
-- `frontend/` — React + Vite SPA
-- `backend/` — Express API, rule engine, Sequelize models, Neo4j logging
-- `docker-compose.yml` — Postgres, Neo4j, backend, frontend services
+## System Architecture
 
-## Quick Start (Demo / No Databases)
-Designed for local UI testing without Postgres/Neo4j.
+**Tech Stack:**
+- **Frontend:** React 18, Vite 5, Tailwind CSS, React Router v6, Chart.js, Framer Motion
+- **Backend:** Node.js, Express, Sequelize (PostgreSQL), Neo4j Graph Database
+- **Inference Engine:** Forward-chaining rule engine for medical diagnosis
+- **Authentication:** JWT-based with guest mode support
+
+**Key Features:**
+- Sleep disorder screening (Insomnia & Sleep Apnea)
+- Real-time rule inference with 40+ medical rules
+- Dual database architecture (PostgreSQL + Neo4j)
+- Interactive data visualization and analytics
+- Responsive mobile-first design with dark/light themes
+- Export screening reports (CSV/TXT)
+
+## Repository Structure
+
+```
+RSBP-FINAL/
+├── frontend/           # React SPA with Vite
+│   ├── src/
+│   │   ├── components/ # Reusable UI components
+│   │   ├── pages/      # Application pages
+│   │   ├── contexts/   # React Context (Auth, Theme)
+│   │   ├── store/      # Zustand stores
+│   │   └── utils/      # API client and constants
+│   └── README.md       # Frontend documentation
+├── backend/            # Express API server
+│   ├── src/
+│   │   ├── controllers/    # Request handlers
+│   │   ├── services/       # Business logic & rule engine
+│   │   ├── models/         # Sequelize models
+│   │   ├── routes/         # API routes
+│   │   └── config/         # Database configurations
+│   └── README.md           # Backend documentation
+├── docker-compose.yml      # Docker services configuration
+└── README.md              # This file
+```
+
+## Quick Start
+
+### Option 1: Demo Mode (No Database Required)
+
+Perfect for UI testing and frontend development:
+
 ```powershell
 # Backend (demo mode)
 cd backend
-set DEMO_MODE=true
+$ENV:DEMO_MODE='true'
 npm install
-npm run dev  # starts on http://localhost:5000
+npm run dev
 
-# Frontend
-cd ../frontend
+# Frontend (new terminal)
+cd frontend
 npm install
-npm run dev  # starts on http://localhost:3000
+npm run dev
 ```
-- Analytics and history return stub/empty data in demo mode.
-- Screening endpoint still runs the rule engine; DB/Neo4j writes are skipped.
 
-## Full Stack (With Databases)
+Access:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:5000/api
+
+**Note:** Demo mode uses stub data for history/analytics. Rule engine still runs for screening.
+
+### Option 2: Full Stack (With Databases)
+
+Complete system with PostgreSQL and Neo4j:
+
 ```powershell
-# From repo root
+# 1. Start databases
 docker-compose up -d postgres neo4j
 
-# Backend
+# 2. Initialize backend
 cd backend
 npm install
-npm run migrate
-npm run seed
+npm run migrate    # Create database schema
+npm run seed       # Seed Neo4j with rule metadata
 npm run dev
 
-# Frontend
-cd ../frontend
+# 3. Start frontend (new terminal)
+cd frontend
 npm install
 npm run dev
 ```
-Services:
-- Frontend: http://localhost:3000
-- API: http://localhost:5000/api
-- Health: http://localhost:5000/health
-- Neo4j Browser: http://localhost:7474 (neo4j / kbsPassword123)
-- PostgreSQL: localhost:5432 (kbs_user / kbsPassword123)
 
-## Environment Files
-See `frontend/README.md` and `backend/README.md` for exact `.env` samples. Key vars:
-- `frontend/.env`: `VITE_API_URL` (default `http://localhost:5000/api`)
-- `backend/.env`: DB credentials, Neo4j credentials, `DEMO_MODE`, `ALLOW_OFFLINE`, `FRONTEND_URL`
+## Service Endpoints
 
-## Useful Scripts
-- Frontend: `npm run dev | build | preview | lint`
-- Backend: `npm run dev | start | migrate | seed`
-- Docker: `docker-compose up` to run the full stack
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Frontend | http://localhost:5173 | - |
+| Backend API | http://localhost:5000/api | - |
+| Health Check | http://localhost:5000/health | - |
+| Neo4j Browser | http://localhost:7474 | neo4j / kbsPassword123 |
+| PostgreSQL | localhost:5432 | kbs_user / kbsPassword123 |
+
+## Environment Configuration
+
+### Frontend (.env)
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_APP_NAME=Sleep Health KBS
+```
+
+### Backend (.env)
+```env
+PORT=5000
+JWT_SECRET=sleep_kbs_secret_2024
+
+# PostgreSQL
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=sleep_health_db
+DB_USER=kbs_user
+DB_PASSWORD=kbsPassword123
+
+# Neo4j
+NEO4J_URI=bolt://neo4j:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=kbsPassword123
+
+# CORS
+FRONTEND_URL=http://localhost:5173
+
+# Optional flags
+DEMO_MODE=false
+ALLOW_OFFLINE=false
+```
+
+## Available Scripts
+
+### Frontend
+```powershell
+npm run dev         # Start development server
+npm run build       # Production build
+npm run preview     # Preview production build
+npm run lint        # Run ESLint
+```
+
+### Backend
+```powershell
+npm run dev         # Start with nodemon
+npm start           # Start without reload
+npm run migrate     # Initialize database schema
+npm run seed        # Seed Neo4j rule metadata
+```
+
+### Docker
+```powershell
+docker-compose up              # Start all services
+docker-compose up -d           # Start in background
+docker-compose down            # Stop all services
+docker-compose logs -f         # View logs
+```
+
+## Application Features
+
+**Pages:**
+- Landing Page - System introduction
+- Login/Register - User authentication
+- Dashboard - Statistics and recent screenings
+- Screening Form - Sleep health questionnaire
+- Results - Diagnosis with recommendations
+- History - Past screening records with export
+- Analytics - Data visualization and insights
+- Settings - Account and preferences
+- Help & Support - FAQs and resources
+
+**UI Components:**
+- Responsive navigation (desktop sidebar + mobile bottom nav)
+- Dark/Light theme toggle
+- Real-time system health monitoring
+- Interactive charts and graphs
+- Toast notifications
+- Loading states and error handling
+
+## Development Workflow
+
+1. **Start databases:** `docker-compose up -d postgres neo4j`
+2. **Backend development:** `cd backend && npm run dev`
+3. **Frontend development:** `cd frontend && npm run dev`
+4. **Test changes:** Access http://localhost:5173
+5. **Check health:** http://localhost:5000/health
 
 ## Documentation
-- Frontend guide: `frontend/README.md`
-- Backend guide: `backend/README.md`
-- Troubleshooting and testing: see files under `frontend/`
+
+- **Frontend Guide:** `frontend/README.md`
+- **Backend Guide:** `backend/README.md`
+- **API Documentation:** Access `/api-docs` in running application
+- **Component Library:** Access `/components` for UI component showcase
+
+## Troubleshooting
+
+**Backend won't start:**
+- Check if databases are running: `docker-compose ps`
+- Use `ALLOW_OFFLINE=true` to start without databases
+- Verify `.env` credentials match docker-compose.yml
+
+**Frontend connection errors:**
+- Ensure backend is running on port 5000
+- Check `VITE_API_URL` in frontend/.env
+- Verify CORS settings in backend
+
+**Database issues:**
+- Run migrations: `cd backend && npm run migrate`
+- Reset Neo4j: Delete data volume and reseed
+- Check connection strings in backend/.env
+
+## License
+
+This project is developed for academic purposes at RSBP (Rumah Sakit Bhayangkara Polda).
+
+## Contributors
+
+Developed as part of sleep health diagnostic system implementation.
