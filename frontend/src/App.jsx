@@ -14,6 +14,8 @@ import History from './pages/History';
 import ScreeningForm from './pages/ScreeningForm';
 import Results from './pages/Results';
 import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
+import Help from './pages/Help';
 import UIShowcase from './pages/UIShowcase';
 import ShowcaseResults from './pages/ShowcaseResults';
 import LandingPage from './pages/LandingPage';
@@ -55,6 +57,8 @@ function App() {
               <Route path="/results" element={<PrivateRoute allowGuest><Results /></PrivateRoute>} />
               <Route path="/history" element={<PrivateRoute><History /></PrivateRoute>} />
               <Route path="/analytics" element={<PrivateRoute><Analytics /></PrivateRoute>} />
+              <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+              <Route path="/help" element={<PrivateRoute allowGuest><Help /></PrivateRoute>} />
             </Route>
             
             <Route path="*" element={<Navigate to="/login" replace />} />

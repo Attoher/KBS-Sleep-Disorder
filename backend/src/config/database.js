@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const DEMO_MODE = process.env.DEMO_MODE === 'true';
+const POSTGRES_ENABLED = process.env.ENABLE_POSTGRES === 'true';
 
 const sequelize = new Sequelize(
   process.env.DB_NAME || 'sleep_health_db',
@@ -29,13 +30,13 @@ const sequelize = new Sequelize(
   }
 );
 
-// Test connection unless in demo mode
-if (!DEMO_MODE) {
+// Avoid noisy connection attempts unless explicitly enabled
+if (!DEMO_MODE && POSTGRES_ENABLED) {
   sequelize.authenticate()
     .then(() => console.log('✅ PostgreSQL connected successfully'))
     .catch(err => console.error('❌ PostgreSQL connection error:', err));
 } else {
-  console.warn('⚠️  DEMO_MODE enabled: skipping PostgreSQL connection test.');
+  console.warn('⚠️  PostgreSQL init skipped (set ENABLE_POSTGRES=true to enable).');
 }
 
 module.exports = sequelize;

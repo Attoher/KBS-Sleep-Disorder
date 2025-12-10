@@ -29,7 +29,8 @@ const Dashboard = () => {
     try {
       const [statsResponse, screeningsResponse, analyticsResponse] = await Promise.all([
         api.get('/analytics/overview?timeframe=today'),
-        api.get('/screening/history?limit=5'),
+        // Use authenticated history endpoint so we don't silently fall back to guest/empty data
+        api.get('/history?limit=5'),
         api.get('/analytics/public/overview')
       ]);
 

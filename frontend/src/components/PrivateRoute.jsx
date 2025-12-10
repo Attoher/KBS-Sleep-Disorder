@@ -4,13 +4,13 @@ import { useAuth } from '../contexts/AuthContext';
 import Loader from './Common/Loader';
 
 const PrivateRoute = ({ children, allowGuest = false }) => {
-  const { isAuthenticated, guestMode, loading } = useAuth();
+  const { isAuthenticated, hasToken, guestMode, loading } = useAuth();
 
   if (loading) {
     return <Loader fullScreen />;
   }
 
-  if (isAuthenticated || (allowGuest && guestMode)) {
+  if (isAuthenticated || hasToken || (allowGuest && guestMode)) {
     return children;
   }
 

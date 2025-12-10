@@ -4,6 +4,7 @@ const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 
 const DEMO_MODE = process.env.DEMO_MODE === 'true';
+const POSTGRES_ENABLED = process.env.ENABLE_POSTGRES === 'true';
 
 class AnalyticsController {
   // Get comprehensive analytics
@@ -35,12 +36,26 @@ class AnalyticsController {
 
       const userId = req.user?.id;
       const { timeframe = 'all' } = req.query;
+
+      // Normalize UI labels to backend filters
+      const normalizedTimeframe = (() => {
+        switch (timeframe) {
+          case 'weekly':
+            return 'week';
+          case 'monthly':
+            return 'month';
+          case 'yearly':
+            return 'year';
+          default:
+            return timeframe;
+        }
+      })();
       
       // Calculate date range based on timeframe
       let dateFilter = {};
       const now = new Date();
       
-      switch (timeframe) {
+      switch (normalizedTimeframe) {
         case 'today':
           dateFilter = {
             createdAt: {
@@ -49,102 +64,124 @@ class AnalyticsController {
           };
           break;
         case 'week':
-          const weekAgo = new Date();
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          dateFilter = { createdAt: { [Op.gte]: weekAgo } };
+          {
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            dateFilter = { createdAt: { [Op.gte]: weekAgo } };
+          }
           break;
         case 'month':
-          const monthAgo = new Date();
-          monthAgo.setMonth(monthAgo.getMonth() - 1);
-          dateFilter = { createdAt: { [Op.gte]: monthAgo } };
+          {
+            const monthAgo = new Date();
+            monthAgo.setMonth(monthAgo.getMonth() - 1);
+            dateFilter = { createdAt: { [Op.gte]: monthAgo } };
+          }
           break;
         case 'year':
-          const yearAgo = new Date();
-          yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-          dateFilter = { createdAt: { [Op.gte]: yearAgo } };
+          {
+            const yearAgo = new Date();
+            yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+            dateFilter = { createdAt: { [Op.gte]: yearAgo } };
+          }
           break;
       }
       
-      // Get Neo4j analytics
+      // Get Neo4j analytics (Case graph)
       const [ruleFrequency, rulePatterns, dashboardStats, ruleNetwork] = await Promise.all([
         neo4jService.getRuleFiringPatterns(),
         neo4jService.getCommonDiagnosisPaths(),
         neo4jService.getDashboardStats(),
         neo4jService.getRuleNetwork()
       ]);
-      
-      // Get PostgreSQL analytics
-      const whereClause = userId ? { userId, ...dateFilter } : dateFilter;
-      
-      const [
-        diagnosisDistribution,
-        monthlyTrends,
-        totalScreenings,
-        avgRulesFired
-      ] = await Promise.all([
-        // Diagnosis distribution
-        Screening.findAll({
+
+      // When Postgres is disabled, return Neo4j-only stats to avoid errors
+      let diagnosisDistribution = [];
+      let monthlyTrends = [];
+      let totalScreenings = 0;
+      let avgRulesFired = 0;
+      let riskDistribution = [];
+      let topRecommendations = [];
+
+      if (POSTGRES_ENABLED) {
+        // Get PostgreSQL analytics
+        const whereClause = userId ? { userId, ...dateFilter } : dateFilter;
+
+        const [
+          diagnosisDistributionRows,
+          monthlyTrendsRows,
+          totalScreeningsCount,
+          avgRulesFiredRows
+        ] = await Promise.all([
+          // Diagnosis distribution
+          Screening.findAll({
+            where: whereClause,
+            attributes: [
+              'diagnosis',
+              [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+            ],
+            group: ['diagnosis'],
+            order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']]
+          }),
+
+          // Monthly trends
+          Screening.findAll({
+            where: whereClause,
+            attributes: [
+              [sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt')), 'month'],
+              [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+            ],
+            group: [sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt'))],
+            order: [[sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt')), 'ASC']],
+            limit: 12
+          }),
+
+          // Total screenings
+          Screening.count({ where: whereClause }),
+
+          // Average rules fired
+          Screening.findAll({
+            where: whereClause,
+            attributes: [
+              [sequelize.fn('AVG', sequelize.fn('jsonb_array_length', sequelize.col('firedRules'))), 'avgRules']
+            ]
+          })
+        ]);
+
+        diagnosisDistribution = diagnosisDistributionRows;
+        monthlyTrends = monthlyTrendsRows.map(item => ({
+          month: item.get('month'),
+          count: item.get('count')
+        }));
+        totalScreenings = totalScreeningsCount;
+        avgRulesFired = avgRulesFiredRows[0]?.get('avgRules') || 0;
+
+        // Risk distribution
+        riskDistribution = await Screening.findAll({
           where: whereClause,
           attributes: [
-            'diagnosis',
+            'insomniaRisk',
+            'apneaRisk',
             [sequelize.fn('COUNT', sequelize.col('id')), 'count']
           ],
-          group: ['diagnosis'],
-          order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']]
-        }),
-        
-        // Monthly trends
-        Screening.findAll({
-          where: whereClause,
-          attributes: [
-            [sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt')), 'month'],
-            [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-          ],
-          group: [sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt'))],
-          order: [[sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt')), 'ASC']],
-          limit: 12
-        }),
-        
-        // Total screenings
-        Screening.count({ where: whereClause }),
-        
-        // Average rules fired
-        Screening.findAll({
-          where: whereClause,
-          attributes: [
-            [sequelize.fn('AVG', sequelize.fn('jsonb_array_length', sequelize.col('firedRules'))), 'avgRules']
-          ]
-        })
-      ]);
-      
-      // Calculate risk distribution
-      const riskDistribution = await Screening.findAll({
-        where: whereClause,
-        attributes: [
-          'insomniaRisk',
-          'apneaRisk',
-          [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-        ],
-        group: ['insomniaRisk', 'apneaRisk']
-      });
-      
-      // Calculate recommendation frequency
-      const allScreenings = await Screening.findAll({
-        where: whereClause,
-        attributes: ['recommendations']
-      });
-      
-      const recommendationFrequency = {};
-      allScreenings.forEach(screening => {
-        (screening.recommendations || []).forEach(rec => {
-          recommendationFrequency[rec] = (recommendationFrequency[rec] || 0) + 1;
+          group: ['insomniaRisk', 'apneaRisk']
         });
-      });
-      
-      const topRecommendations = Object.entries(recommendationFrequency)
-        .map(([rec, count]) => ({ recommendation: rec, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
+
+        // Recommendations
+        const allScreenings = await Screening.findAll({
+          where: whereClause,
+          attributes: ['recommendations']
+        });
+        const recommendationFrequency = {};
+        allScreenings.forEach(screening => {
+          (screening.recommendations || []).forEach(rec => {
+            recommendationFrequency[rec] = (recommendationFrequency[rec] || 0) + 1;
+          });
+        });
+        topRecommendations = Object.entries(recommendationFrequency)
+          .map(([rec, count]) => ({ recommendation: rec, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+      }
       
       res.json({
         success: true,
@@ -156,17 +193,14 @@ class AnalyticsController {
           
           // PostgreSQL data
           diagnosisDistribution,
-          monthlyTrends: monthlyTrends.map(item => ({
-            month: item.get('month'),
-            count: item.get('count')
-          })),
+          monthlyTrends,
           riskDistribution,
           topRecommendations,
           
           // Combined statistics
           statistics: {
-            totalScreenings,
-            avgRulesFired: avgRulesFired[0]?.get('avgRules') || 0,
+            totalScreenings: totalScreenings || dashboardStats.totalCases || 0,
+            avgRulesFired: avgRulesFired || 0,
             mostCommonDiagnosis: diagnosisDistribution[0]?.diagnosis || 'N/A',
             totalRulesFired: ruleFrequency.reduce((sum, rule) => sum + rule.frequency, 0),
             uniqueRulesFired: ruleFrequency.length,

@@ -1,8 +1,8 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sqliteDb = require('../config/sqlite');
 const bcrypt = require('bcryptjs');
 
-const User = sequelize.define('User', {
+const User = sqliteDb.define('User', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,

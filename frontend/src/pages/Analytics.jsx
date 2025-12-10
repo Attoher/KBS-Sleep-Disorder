@@ -30,6 +30,7 @@ const Analytics = () => {
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
   const [timeframe, setTimeframe] = useState('monthly');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchAnalytics();
@@ -40,14 +41,35 @@ const Analytics = () => {
       setLoading(true);
       const response = await api.get(`/analytics/overview?timeframe=${timeframe}`);
       setAnalytics(response.data.data);
+      setError('');
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
+      setError('Gagal memuat analytics. Coba refresh atau cek koneksi.');
+      // Provide a safe fallback so the page renders instead of spinning forever
+      setAnalytics({
+        ruleFrequency: [],
+        rulePatterns: [],
+        ruleNetwork: {},
+        diagnosisDistribution: [],
+        monthlyTrends: [],
+        riskDistribution: [],
+        topRecommendations: [],
+        statistics: {
+          totalScreenings: 0,
+          avgRulesFired: 0,
+          mostCommonDiagnosis: 'N/A',
+          totalRulesFired: 0,
+          uniqueRulesFired: 0
+        },
+        timeframe,
+        generatedAt: new Date().toISOString()
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading || !analytics) {
+  if (loading && !analytics) {
     return <Loader fullScreen />;
   }
 
@@ -84,6 +106,9 @@ const Analytics = () => {
             </Button>
           </div>
         </div>
+        {error && (
+          <p className="mt-2 text-sm text-red-400">{error}</p>
+        )}
       </motion.div>
 
       {/* Stats Cards */}

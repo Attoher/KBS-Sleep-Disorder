@@ -117,14 +117,32 @@ const ScreeningForm = () => {
       // Prepare data with calculated stress level
       const submissionData = {
         ...formData,
-        stressLevel
+        stressLevel,
+        log_to_neo4j: formData.log_to_neo4j !== false // Ensure this is sent
       };
       
+      console.log('📤 Submitting screening data:', {
+        hasAuth: !!localStorage.getItem('authToken'),
+        log_to_neo4j: submissionData.log_to_neo4j,
+        dataKeys: Object.keys(submissionData)
+      });
+      
       const response = await api.post('/screening/process', submissionData);
+      
+      console.log('✅ Screening response:', response.data);
+      
       toast.success('Screening completed successfully!');
-      navigate('/results', { state: { results: response.data.data } });
+      
+      // Navigate to results with the response data
+      navigate('/results', { 
+        state: { 
+          results: response.data.data,
+          metadata: response.data.metadata
+        } 
+      });
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Screening failed';
+      console.error('❌ Screening error:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.error || error.response?.data?.errors?.[0] || 'Screening failed';
       toast.error(errorMessage);
     } finally {
       setLoading(false);

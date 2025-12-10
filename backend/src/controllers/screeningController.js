@@ -1,6 +1,7 @@
 const ruleEngine = require('../services/ruleEngine');
+const neo4jScreeningService = require('../services/neo4jScreeningService');
 const neo4jService = require('../services/neo4jService');
-const { Screening, User } = require('../models');
+const { User } = require('../models');
 const { v4: uuidv4 } = require('uuid');
 
 const DEMO_MODE = process.env.DEMO_MODE === 'true';
@@ -11,23 +12,33 @@ class ScreeningController {
     try {
       const inputData = req.body;
       const userId = req.user?.id;
+      const isGuest = !userId;
       const logToNeo4j = inputData.log_to_neo4j !== false; // Default to true
       
       console.log('🎯 Processing screening request...');
       console.log('   User ID:', userId || 'Guest');
       console.log('   Log to Neo4j:', logToNeo4j);
       
-      // Validate input
-      const validationErrors = ruleEngine.validateInput(inputData);
-      if (validationErrors.length > 0) {
-        return res.status(400).json({
-          success: false,
-          errors: validationErrors
-        });
+      // For guest mode, provide minimal validation
+      if (!isGuest) {
+        // Validate input only for authenticated users
+        const validationErrors = ruleEngine.validateInput(inputData);
+        if (validationErrors.length > 0) {
+          return res.status(400).json({
+            success: false,
+            errors: validationErrors
+          });
+        }
       }
       
-      // Run rule engine inference
-      const results = ruleEngine.runForwardChaining(inputData);
+      // Run rule engine inference (or use dummy results for guest)
+      let results;
+      if (isGuest) {
+        // Generate dummy results for guest screening
+        results = this.generateDummyResults(inputData);
+      } else {
+        results = ruleEngine.runForwardChaining(inputData);
+      }
       
       // Prepare response
       const response = {
@@ -52,45 +63,18 @@ class ScreeningController {
         }
       };
       
-      let neo4jCaseId = null;
+      let screeningId = null;
       
-      // Log to Neo4j if requested
-      if (logToNeo4j && !DEMO_MODE) {
+      // Save to Neo4j if user is authenticated and logging is enabled
+      if (userId && logToNeo4j && !DEMO_MODE) {
         try {
-          const personId = userId ? `USER_${userId}` : `GUEST_${uuidv4().slice(0, 8)}`;
-          neo4jCaseId = await neo4jService.logCase(
-            personId,
-            inputData,
-            results,
-            results.firedRules
-          );
-          console.log('   Neo4j Case ID:', neo4jCaseId);
+          screeningId = await neo4jScreeningService.createScreening(userId, inputData, results);
+          // Also log to Case graph so analytics/dashboard can see the data
+          await neo4jService.logCase(`USER_${userId}`, inputData, results, results.firedRules || []);
+          console.log('   Neo4j Screening ID:', screeningId);
         } catch (neo4jError) {
-          console.error('⚠️  Neo4j logging failed, continuing without:', neo4jError.message);
-          // Continue even if Neo4j logging fails
-        }
-      }
-      
-      // Save to PostgreSQL if user is logged in
-      let savedScreening = null;
-      if (userId && !DEMO_MODE) {
-        try {
-          savedScreening = await Screening.create({
-            userId,
-            inputData,
-            insomniaRisk: results.insomnia_risk,
-            apneaRisk: results.apnea_risk,
-            diagnosis: results.diagnosis,
-            recommendations: results.recommendations,
-            firedRules: results.firedRules,
-            lifestyleIssues: results.lifestyleIssues,
-            neo4jCaseId,
-            results: response
-          });
-          console.log('   Screening saved to PostgreSQL with ID:', savedScreening.id);
-        } catch (dbError) {
-          console.error('⚠️  PostgreSQL save failed:', dbError.message);
-          // Continue even if DB save fails
+          console.error('⚠️  Neo4j save failed, continuing without:', neo4jError.message);
+          // Continue even if Neo4j save fails
         }
       }
       
@@ -103,8 +87,7 @@ class ScreeningController {
           timestamp: new Date().toISOString(),
           processingTime: `${Date.now() - req.startTime || 0}ms`,
           rulesFired: results.firedRules.length,
-          neo4jCaseId,
-          screeningId: savedScreening?.id,
+          screeningId,
           userId
         }
       });
@@ -131,8 +114,8 @@ class ScreeningController {
             statistics: {
               totalScreenings: 0,
               diagnosisDistribution: [],
-              riskDistribution: [],
-              mostCommonDiagnosis: 'N/A'
+              avgRulesFired: 0,
+              uniqueDiagnoses: 0
             }
           }
         });
@@ -142,84 +125,34 @@ class ScreeningController {
       const { 
         page = 1, 
         limit = 10, 
-        sortBy = 'createdAt', 
-        sortOrder = 'DESC',
         diagnosis,
         startDate,
         endDate
       } = req.query;
       
-      // Build where clause
-      const where = { userId };
+      // Build filters
+      const filters = {};
+      if (diagnosis) filters.diagnosis = diagnosis;
+      if (startDate) filters.startDate = startDate;
+      if (endDate) filters.endDate = endDate;
       
-      if (diagnosis) {
-        where.diagnosis = diagnosis;
-      }
+      // Get screenings from Neo4j
+      const result = await neo4jScreeningService.getUserScreenings(
+        userId, 
+        parseInt(page), 
+        parseInt(limit),
+        filters
+      );
       
-      if (startDate || endDate) {
-        where.createdAt = {};
-        if (startDate) where.createdAt[Op.gte] = new Date(startDate);
-        if (endDate) where.createdAt[Op.lte] = new Date(endDate);
-      }
-      
-      // Calculate pagination
-      const offset = (parseInt(page) - 1) * parseInt(limit);
-      
-      // Get screenings with pagination
-      const { count, rows: screenings } = await Screening.findAndCountAll({
-        where,
-        order: [[sortBy, sortOrder.toUpperCase()]],
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        attributes: [
-          'id',
-          'diagnosis',
-          'insomniaRisk',
-          'apneaRisk',
-          'recommendations',
-          'firedRules',
-          'neo4jCaseId',
-          'createdAt'
-        ]
-      });
-      
-      // Get summary statistics
-      const diagnosisStats = await Screening.findAll({
-        where: { userId },
-        attributes: [
-          'diagnosis',
-          [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-        ],
-        group: ['diagnosis'],
-        order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']]
-      });
-      
-      const riskStats = await Screening.findAll({
-        where: { userId },
-        attributes: [
-          'insomniaRisk',
-          'apneaRisk',
-          [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-        ],
-        group: ['insomniaRisk', 'apneaRisk']
-      });
+      // Get statistics
+      const stats = await neo4jScreeningService.getUserScreeningStats(userId);
       
       res.json({
         success: true,
         data: {
-          screenings,
-          pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            total: count,
-            totalPages: Math.ceil(count / parseInt(limit))
-          },
-          statistics: {
-            totalScreenings: count,
-            diagnosisDistribution: diagnosisStats,
-            riskDistribution: riskStats,
-            mostCommonDiagnosis: diagnosisStats[0]?.diagnosis || 'N/A'
-          }
+          screenings: result.screenings,
+          pagination: result.pagination,
+          statistics: stats
         }
       });
       
@@ -236,15 +169,9 @@ class ScreeningController {
   async getScreeningById(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.id;
+      const userId = req.user?.id;
       
-      const screening = await Screening.findOne({
-        where: { id, userId },
-        include: [{
-          model: User,
-          attributes: ['id', 'name', 'email']
-        }]
-      });
+      const screening = await neo4jScreeningService.getScreeningById(id);
       
       if (!screening) {
         return res.status(404).json({
@@ -253,22 +180,12 @@ class ScreeningController {
         });
       }
       
-      // Try to get Neo4j details if case ID exists
-      let neo4jDetails = null;
-      if (screening.neo4jCaseId) {
-        try {
-          neo4jDetails = await neo4jService.getCaseDetails(screening.neo4jCaseId);
-        } catch (neo4jError) {
-          console.warn('Could not fetch Neo4j details:', neo4jError.message);
-        }
-      }
+      // If user context exists, verify ownership (optional)
+      // For now, we'll allow viewing any screening by ID
       
       res.json({
         success: true,
-        data: {
-          screening,
-          neo4jDetails
-        }
+        data: screening
       });
       
     } catch (error) {
@@ -284,55 +201,114 @@ class ScreeningController {
   async exportHistory(req, res) {
     try {
       const userId = req.user.id;
-      const { format = 'json' } = req.query;
+      const { format, id } = req.query;
+      const exportFormat = (format || (id ? 'pdf' : 'json')).toLowerCase();
+
+      // If a specific screening is requested, export only that record
+      if (id) {
+        const screening = await neo4jScreeningService.getScreeningById(id);
+
+        if (!screening) {
+          return res.status(404).json({ success: false, error: 'Screening not found' });
+        }
+
+        // Single record export
+        if (exportFormat === 'pdf') {
+          const PDFDocument = require('pdfkit');
+          const doc = new PDFDocument();
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename=screening-${id}.pdf`);
+
+          doc.pipe(res);
+          doc.fontSize(18).text('Sleep Health Screening Report', { align: 'center' });
+          doc.moveDown();
+          doc.fontSize(12).text(`Generated: ${new Date().toLocaleString()}`);
+          doc.text(`Screening ID: ${screening.screeningId}`);
+          doc.text(`Date: ${screening.timestamp}`);
+          doc.moveDown();
+
+          doc.fontSize(14).text('Diagnosis');
+          doc.fontSize(12).text(`Result: ${screening.diagnosis}`);
+          doc.text(`Insomnia Risk: ${screening.insomniaRisk}`);
+          doc.text(`Apnea Risk: ${screening.apneaRisk}`);
+          doc.moveDown();
+
+          doc.fontSize(14).text('Recommendations');
+          (screening.recommendations || []).forEach((rec, idx) => {
+            doc.fontSize(12).text(`${idx + 1}. ${rec}`);
+          });
+          doc.moveDown();
+
+          doc.fontSize(14).text('Input Summary');
+          doc.fontSize(12).text(JSON.stringify(screening.inputData || {}, null, 2));
+
+          doc.end();
+        } else if (exportFormat === 'csv') {
+          const headers = [
+            'Date', 'Diagnosis', 'Insomnia Risk', 'Apnea Risk',
+            'Sleep Duration', 'Sleep Quality', 'Stress Level', 'BMI Category',
+            'Recommendations', 'Rules Fired'
+          ];
+          const row = [
+            screening.timestamp,
+            screening.diagnosis,
+            screening.insomniaRisk,
+            screening.apneaRisk,
+            screening.inputData?.sleepDuration || screening.inputData?.['Sleep Duration'] || 'N/A',
+            screening.inputData?.sleepQuality || screening.inputData?.['Quality of Sleep'] || 'N/A',
+            screening.inputData?.stressLevel || screening.inputData?.['Stress Level'] || 'N/A',
+            screening.inputData?.bmiCategory || screening.inputData?.['BMI Category'] || 'N/A',
+            (screening.recommendations || []).join('; '),
+            (screening.firedRules || []).join(', ')
+          ];
+
+          const csvString = `${headers.join(',')}
+${row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')}`;
+
+          res.setHeader('Content-Type', 'text/csv');
+          res.setHeader('Content-Disposition', `attachment; filename=screening-${id}.csv`);
+          return res.send(csvString);
+        }
+
+        // Default single-record JSON
+        return res.json({ success: true, data: screening });
+      }
+
+      // Bulk export flow (all screenings for user)
+      const result = await neo4jScreeningService.getUserScreenings(userId, 1, 1000); // Get up to 1000 records
+      const screenings = result.screenings;
       
-      // Get all screenings for the user
-      const screenings = await Screening.findAll({
-        where: { userId },
-        order: [['createdAt', 'DESC']],
-        attributes: [
-          'id',
-          'diagnosis',
-          'insomniaRisk',
-          'apneaRisk',
-          'recommendations',
-          'firedRules',
-          'lifestyleIssues',
-          'inputData',
-          'createdAt'
-        ]
-      });
-      
-      if (format === 'csv') {
-        // Generate CSV
-        const csvData = screenings.map(s => ({
-          Date: s.createdAt.toISOString().split('T')[0],
-          Time: s.createdAt.toTimeString().split(' ')[0],
-          Diagnosis: s.diagnosis,
-          'Insomnia Risk': s.insomniaRisk,
-          'Apnea Risk': s.apneaRisk,
-          'Sleep Duration': s.inputData?.sleepDuration || s.inputData?.['Sleep Duration'] || 'N/A',
-          'Sleep Quality': s.inputData?.sleepQuality || s.inputData?.['Quality of Sleep'] || 'N/A',
-          'Stress Level': s.inputData?.stressLevel || s.inputData?.['Stress Level'] || 'N/A',
-          'BMI Category': s.inputData?.bmiCategory || s.inputData?.['BMI Category'] || 'N/A',
-          Recommendations: s.recommendations?.join('; ') || '',
-          'Rules Fired': s.firedRules?.join(', ') || ''
-        }));
-        
-        const { createArrayCsvWriter } = require('csv-writer');
-        const csvWriter = createArrayCsvWriter({
-          path: 'temp/history.csv',
-          header: Object.keys(csvData[0] || {})
-        });
-        
-        await csvWriter.writeRecords(csvData);
-        
+      if (exportFormat === 'csv') {
+        const headers = [
+          'Date', 'Diagnosis', 'Insomnia Risk', 'Apnea Risk',
+          'Sleep Duration', 'Sleep Quality', 'Stress Level', 'BMI Category',
+          'Recommendations', 'Rules Fired'
+        ];
+
+        const rows = screenings.map(s => [
+          s.timestamp,
+          s.diagnosis,
+          s.insomniaRisk,
+          s.apneaRisk,
+          s.inputData?.sleepDuration || s.inputData?.['Sleep Duration'] || 'N/A',
+          s.inputData?.sleepQuality || s.inputData?.['Quality of Sleep'] || 'N/A',
+          s.inputData?.stressLevel || s.inputData?.['Stress Level'] || 'N/A',
+          s.inputData?.bmiCategory || s.inputData?.['BMI Category'] || 'N/A',
+          (s.recommendations || []).join('; '),
+          (s.firedRules || []).join(', ')
+        ]);
+
+        const escape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+        const csvString = [headers.join(',')]
+          .concat(rows.map(row => row.map(escape).join(',')))
+          .join('\n');
+
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=sleep-health-history.csv');
-        res.download('temp/history.csv');
+        return res.send(csvString);
         
-      } else if (format === 'pdf') {
-        // Generate PDF
+      } else if (exportFormat === 'pdf') {
         const PDFDocument = require('pdfkit');
         const doc = new PDFDocument();
         
@@ -341,7 +317,6 @@ class ScreeningController {
         
         doc.pipe(res);
         
-        // Add content to PDF
         doc.fontSize(20).text('Sleep Health Screening History', { align: 'center' });
         doc.moveDown();
         doc.fontSize(12).text(`Generated: ${new Date().toLocaleString()}`);
@@ -350,9 +325,11 @@ class ScreeningController {
         
         screenings.forEach((screening, index) => {
           doc.fontSize(14).text(`Screening ${index + 1}: ${screening.diagnosis}`);
-          doc.fontSize(10).text(`Date: ${screening.createdAt.toLocaleDateString()}`);
+          doc.fontSize(10).text(`Date: ${screening.timestamp}`);
           doc.text(`Insomnia Risk: ${screening.insomniaRisk}`);
           doc.text(`Apnea Risk: ${screening.apneaRisk}`);
+          doc.text(`Recommendations: ${(screening.recommendations || []).join('; ') || 'N/A'}`);
+          doc.text(`Rules Fired: ${(screening.firedRules || []).join(', ') || 'N/A'}`);
           doc.moveDown();
         });
         
@@ -379,18 +356,8 @@ class ScreeningController {
   async deleteScreening(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.id;
       
-      const screening = await Screening.findOne({ where: { id, userId } });
-      
-      if (!screening) {
-        return res.status(404).json({
-          success: false,
-          error: 'Screening not found'
-        });
-      }
-      
-      await screening.destroy();
+      await neo4jScreeningService.deleteScreening(id);
       
       res.json({
         success: true,
@@ -430,14 +397,62 @@ class ScreeningController {
       });
     }
   }
-}
 
-// Add middleware to track processing time
-ScreeningController.prototype.processScreening = (function(original) {
-  return function(req, res) {
-    req.startTime = Date.now();
-    return original.call(this, req, res);
-  };
-})(ScreeningController.prototype.processScreening);
+  // Generate dummy results for guest screening
+  generateDummyResults(inputData) {
+    const dummyRules = ['R1', 'R3', 'R5', 'R12', 'R18'];
+    
+    // Determine risk levels based on input (simplified)
+    const age = inputData.age || inputData.Age || 40;
+    const sleepDuration = inputData.sleepDuration || inputData['Sleep Duration'] || 6;
+    const sleepQuality = inputData.sleepQuality || inputData['Quality of Sleep'] || 5;
+    const stressLevel = inputData.stressLevel || inputData['Stress Level'] || 5;
+    const bmi = inputData.bmiCategory || inputData['BMI Category'] || 'Normal';
+    
+    let insomniaRisk = 'low';
+    let apneaRisk = 'low';
+    let diagnosis = 'Normal Sleep Pattern';
+    
+    // Simple heuristics for dummy results
+    if (sleepDuration < 5 || sleepQuality < 4) {
+      insomniaRisk = 'high';
+      diagnosis = 'Probable Insomnia';
+    } else if (sleepDuration < 6.5 || sleepQuality < 6) {
+      insomniaRisk = 'moderate';
+      diagnosis = 'Mild Sleep Disturbance';
+    }
+    
+    if (age > 50 && bmi === 'Obese') {
+      apneaRisk = 'high';
+      diagnosis = 'Probable Sleep Apnea';
+    } else if (age > 40 && bmi === 'Overweight') {
+      apneaRisk = 'moderate';
+    }
+    
+    if (insomniaRisk === 'high' && apneaRisk === 'high') {
+      diagnosis = 'Complex Sleep Disorder - Multiple Issues';
+    }
+    
+    return {
+      diagnosis,
+      insomnia_risk: insomniaRisk,
+      apnea_risk: apneaRisk,
+      lifestyleIssues: {
+        sleep: sleepDuration < 7,
+        stress: stressLevel > 6,
+        activity: (inputData.physicalActivity || 0) < 30,
+        weight: bmi === 'Obese' || bmi === 'Overweight'
+      },
+      recommendations: [
+        'Maintain consistent sleep schedule (same bedtime and wake time daily)',
+        'Avoid caffeine and heavy meals 3-4 hours before bedtime',
+        'Ensure bedroom is dark, quiet, and cool (around 18-20°C)',
+        'Exercise regularly but not close to bedtime',
+        'Consider consulting a sleep specialist for detailed evaluation'
+      ],
+      firedRules: dummyRules
+    };
+  }
+}
 
 module.exports = new ScreeningController();

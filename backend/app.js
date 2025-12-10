@@ -9,8 +9,8 @@ dotenv.config();
 
 const DEMO_MODE = process.env.DEMO_MODE === 'true';
 
-// Import database connection
-const sequelize = require('./src/config/database');
+// Import database connections
+const sqliteDb = require('./src/config/sqlite');
 const { initNeo4jSchema } = require('./src/config/neo4j');
 
 // Import routes
@@ -38,7 +38,7 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     services: {
-      postgres: DEMO_MODE ? 'skipped (demo mode)' : 'connected',
+      sqlite_auth: DEMO_MODE ? 'skipped (demo mode)' : 'connected',
       neo4j: DEMO_MODE ? 'skipped (demo mode)' : 'connected'
     }
   });
@@ -76,19 +76,19 @@ app.use((err, req, res, next) => {
 async function startServer() {
   try {
     if (!DEMO_MODE) {
-      // Test PostgreSQL connection
-      await sequelize.authenticate();
-      console.log('✅ PostgreSQL connection established successfully.');
+      // Test SQLite connection (for authentication)
+      await sqliteDb.authenticate();
+      console.log('✅ SQLite connection established successfully.');
       
-      // Sync models
-      await sequelize.sync({ alter: true });
-      console.log('✅ Database models synchronized.');
+      // Sync User model
+      await sqliteDb.sync({ alter: true });
+      console.log('✅ User model synchronized with SQLite.');
       
-      // Initialize Neo4j schema
+      // Initialize Neo4j schema (for screening data)
       await initNeo4jSchema();
       console.log('✅ Neo4j schema initialized.');
     } else {
-      console.warn('⚠️  DEMO_MODE enabled: skipping PostgreSQL and Neo4j initialization.');
+      console.warn('⚠️  DEMO_MODE enabled: skipping SQLite and Neo4j initialization.');
     }
     
     // Start server
@@ -96,6 +96,7 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
+      console.log('🗄️  Architecture: SQLite (Auth) + Neo4j (Screening Data)');
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
@@ -114,13 +115,11 @@ async function startServer() {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received. Shutting down gracefully...');
-  await sequelize.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received. Shutting down gracefully...');
-  await sequelize.close();
   process.exit(0);
 });
 

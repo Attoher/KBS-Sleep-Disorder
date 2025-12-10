@@ -1,5 +1,5 @@
-const { Screening, User } = require('../models');
-const { Op } = require('sequelize');
+const neo4jScreeningService = require('../services/neo4jScreeningService');
+const { driver } = require('../config/neo4j');
 
 class HistoryController {
   // Get detailed history with filters
@@ -9,69 +9,33 @@ class HistoryController {
       const {
         page = 1,
         limit = 20,
-        search,
         diagnosis,
         startDate,
-        endDate,
-        sortBy = 'createdAt',
-        sortOrder = 'DESC'
+        endDate
       } = req.query;
       
-      // Build where clause
-      const where = { userId };
+      // Build filters
+      const filters = {};
+      if (diagnosis) filters.diagnosis = diagnosis;
+      if (startDate) filters.startDate = startDate;
+      if (endDate) filters.endDate = endDate;
       
-      // Search by diagnosis or notes
-      if (search) {
-        where[Op.or] = [
-          { diagnosis: { [Op.iLike]: `%${search}%` } },
-          { notes: { [Op.iLike]: `%${search}%` } }
-        ];
-      }
-      
-      // Filter by diagnosis
-      if (diagnosis) {
-        where.diagnosis = diagnosis;
-      }
-      
-      // Filter by date range
-      if (startDate || endDate) {
-        where.createdAt = {};
-        if (startDate) {
-          where.createdAt[Op.gte] = new Date(startDate);
-        }
-        if (endDate) {
-          where.createdAt[Op.lte] = new Date(endDate);
-        }
-      }
-      
-      // Calculate pagination
-      const offset = (parseInt(page) - 1) * parseInt(limit);
-      
-      // Get screenings
-      const { count, rows: screenings } = await Screening.findAndCountAll({
-        where,
-        order: [[sortBy, sortOrder.toUpperCase()]],
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        include: [{
-          model: User,
-          attributes: ['name', 'email']
-        }]
-      });
+      // Get screenings from Neo4j
+      const result = await neo4jScreeningService.getUserScreenings(
+        userId, 
+        parseInt(page), 
+        parseInt(limit),
+        filters
+      );
       
       // Get statistics
-      const statistics = await this.getHistoryStatistics(userId, where);
+      const statistics = await this.getHistoryStatistics(userId);
       
       res.json({
         success: true,
         data: {
-          screenings,
-          pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            total: count,
-            totalPages: Math.ceil(count / parseInt(limit))
-          },
+          screenings: result.screenings,
+          pagination: result.pagination,
           statistics
         }
       });
@@ -86,73 +50,61 @@ class HistoryController {
   }
   
   // Get history statistics
-  async getHistoryStatistics(userId, where = {}) {
+  async getHistoryStatistics(userId) {
+    const session = driver.session();
+    
     try {
-      const totalScreenings = await Screening.count({ where: { ...where, userId } });
+      const personId = `USER_${userId}`;
       
-      // Diagnosis distribution
-      const diagnosisDistribution = await Screening.findAll({
-        where: { ...where, userId },
-        attributes: [
-          'diagnosis',
-          [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-        ],
-        group: ['diagnosis'],
-        order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']]
+      const result = await session.executeRead(async tx => {
+        const response = await tx.run(`
+          MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening)
+          OPTIONAL MATCH (s)-[:HAS_DIAGNOSIS]->(d:Diagnosis)
+          WITH 
+            COUNT(DISTINCT s) as totalScreenings,
+            COLLECT(DISTINCT d.name) as diagnoses
+          
+          MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening)
+          WITH totalScreenings, diagnoses,
+               s.diagnosis as diagnosis,
+               COUNT(s) as diagnosisCount
+          ORDER BY diagnosisCount DESC
+          RETURN 
+            totalScreenings,
+            COLLECT({diagnosis: diagnosis, count: diagnosisCount}) as diagnosisDistribution,
+            diagnoses
+        `, { personId });
+        
+        if (response.records.length === 0) {
+          return {
+            totalScreenings: 0,
+            diagnosisDistribution: [],
+            topRecommendations: []
+          };
+        }
+        
+        const record = response.records[0];
+        return {
+          totalScreenings: record.get('totalScreenings').low || 0,
+          diagnosisDistribution: record.get('diagnosisDistribution').map(d => ({
+            diagnosis: d.diagnosis,
+            count: d.count.low
+          })),
+          topRecommendations: [],
+          mostCommonDiagnosis: record.get('diagnoses')[0] || 'N/A'
+        };
       });
       
-      // Risk level distribution
-      const riskDistribution = await Screening.findAll({
-        where: { ...where, userId },
-        attributes: [
-          'insomniaRisk',
-          'apneaRisk',
-          [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-        ],
-        group: ['insomniaRisk', 'apneaRisk']
-      });
-      
-      // Monthly trend
-      const monthlyTrend = await Screening.findAll({
-        where: { ...where, userId },
-        attributes: [
-          [sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt')), 'month'],
-          [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-        ],
-        group: [sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt'))],
-        order: [[sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt')), 'ASC']],
-        limit: 12
-      });
-      
-      // Most common recommendations
-      const allScreenings = await Screening.findAll({
-        where: { ...where, userId },
-        attributes: ['recommendations']
-      });
-      
-      const recommendationCounts = {};
-      allScreenings.forEach(screening => {
-        (screening.recommendations || []).forEach(rec => {
-          recommendationCounts[rec] = (recommendationCounts[rec] || 0) + 1;
-        });
-      });
-      
-      const topRecommendations = Object.entries(recommendationCounts)
-        .map(([rec, count]) => ({ recommendation: rec, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
-      
-      return {
-        totalScreenings,
-        diagnosisDistribution,
-        riskDistribution,
-        monthlyTrend,
-        topRecommendations,
-        mostCommonDiagnosis: diagnosisDistribution[0]?.diagnosis || 'N/A'
-      };
+      return result;
     } catch (error) {
       console.error('Get statistics error:', error);
-      return {};
+      return {
+        totalScreenings: 0,
+        diagnosisDistribution: [],
+        topRecommendations: []
+      };
+    } finally {
+      await session.close();
     }
   }
   
@@ -175,29 +127,26 @@ class HistoryController {
     }
   }
   
-  // Add notes to screening
+  // Add notes to screening (stored in Neo4j)
   async addNotes(req, res) {
+    const session = driver.session();
+    
     try {
       const { id } = req.params;
       const { notes } = req.body;
-      const userId = req.user.id;
       
-      const screening = await Screening.findOne({ where: { id, userId } });
-      
-      if (!screening) {
-        return res.status(404).json({
-          success: false,
-          error: 'Screening not found'
-        });
-      }
-      
-      screening.notes = notes;
-      await screening.save();
+      await session.executeWrite(async tx => {
+        await tx.run(`
+          MATCH (s:Screening {screeningId: $screeningId})
+          SET s.notes = $notes,
+              s.notesUpdated = datetime()
+          RETURN s
+        `, { screeningId: id, notes });
+      });
       
       res.json({
         success: true,
-        message: 'Notes added successfully',
-        data: screening
+        message: 'Notes added successfully'
       });
       
     } catch (error) {
@@ -206,26 +155,26 @@ class HistoryController {
         success: false,
         error: 'Failed to add notes'
       });
+    } finally {
+      await session.close();
     }
   }
   
   // Archive screening
   async archiveScreening(req, res) {
+    const session = driver.session();
+    
     try {
       const { id } = req.params;
-      const userId = req.user.id;
       
-      const screening = await Screening.findOne({ where: { id, userId } });
-      
-      if (!screening) {
-        return res.status(404).json({
-          success: false,
-          error: 'Screening not found'
-        });
-      }
-      
-      screening.isArchived = true;
-      await screening.save();
+      await session.executeWrite(async tx => {
+        await tx.run(`
+          MATCH (s:Screening {screeningId: $screeningId})
+          SET s.isArchived = true,
+              s.archivedAt = datetime()
+          RETURN s
+        `, { screeningId: id });
+      });
       
       res.json({
         success: true,
@@ -238,26 +187,25 @@ class HistoryController {
         success: false,
         error: 'Failed to archive screening'
       });
+    } finally {
+      await session.close();
     }
   }
   
   // Unarchive screening
   async unarchiveScreening(req, res) {
+    const session = driver.session();
+    
     try {
       const { id } = req.params;
-      const userId = req.user.id;
       
-      const screening = await Screening.findOne({ where: { id, userId } });
-      
-      if (!screening) {
-        return res.status(404).json({
-          success: false,
-          error: 'Screening not found'
-        });
-      }
-      
-      screening.isArchived = false;
-      await screening.save();
+      await session.executeWrite(async tx => {
+        await tx.run(`
+          MATCH (s:Screening {screeningId: $screeningId})
+          SET s.isArchived = false
+          RETURN s
+        `, { screeningId: id });
+      });
       
       res.json({
         success: true,
@@ -270,23 +218,55 @@ class HistoryController {
         success: false,
         error: 'Failed to unarchive screening'
       });
+    } finally {
+      await session.close();
     }
   }
   
   // Get archived screenings
   async getArchived(req, res) {
+    const session = driver.session();
+    
     try {
       const userId = req.user.id;
       const { page = 1, limit = 20 } = req.query;
-      
+      const personId = `USER_${userId}`;
       const offset = (parseInt(page) - 1) * parseInt(limit);
       
-      const { count, rows: screenings } = await Screening.findAndCountAll({
-        where: { userId, isArchived: true },
-        order: [['createdAt', 'DESC']],
-        limit: parseInt(limit),
-        offset: parseInt(offset)
-      });
+      const [screenings, totalResult] = await Promise.all([
+        session.executeRead(async tx => {
+          const response = await tx.run(`
+            MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening)
+            WHERE s.isArchived = true
+            RETURN 
+              s.screeningId as screeningId,
+              s.timestamp as timestamp,
+              s.diagnosis as diagnosis,
+              s.insomniaRisk as insomniaRisk,
+              s.apneaRisk as apneaRisk
+            ORDER BY s.timestamp DESC
+            SKIP $offset
+            LIMIT $limit
+          `, { personId, offset, limit });
+          
+          return response.records.map(record => ({
+            screeningId: record.get('screeningId'),
+            timestamp: record.get('timestamp'),
+            diagnosis: record.get('diagnosis'),
+            insomniaRisk: record.get('insomniaRisk'),
+            apneaRisk: record.get('apneaRisk')
+          }));
+        }),
+        session.executeRead(async tx => {
+          const response = await tx.run(`
+            MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening)
+            WHERE s.isArchived = true
+            RETURN COUNT(s) as total
+          `, { personId });
+          
+          return response.records[0]?.get('total').low || 0;
+        })
+      ]);
       
       res.json({
         success: true,
@@ -295,8 +275,8 @@ class HistoryController {
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),
-            total: count,
-            totalPages: Math.ceil(count / parseInt(limit))
+            total: totalResult,
+            totalPages: Math.ceil(totalResult / parseInt(limit))
           }
         }
       });
@@ -307,6 +287,8 @@ class HistoryController {
         success: false,
         error: 'Failed to fetch archived screenings'
       });
+    } finally {
+      await session.close();
     }
   }
 }

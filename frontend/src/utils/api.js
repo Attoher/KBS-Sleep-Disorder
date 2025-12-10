@@ -14,6 +14,8 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Avoid cache issues in some browsers
+    config.headers['Cache-Control'] = 'no-cache';
     return config;
   },
   (error) => {
@@ -25,9 +27,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const isGuest = localStorage.getItem('guest') === 'true';
+
+    // Only force redirect for authenticated users on 401
+    if (status === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      if (!isGuest && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
