@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Moon, Sun, Bell, User, Eye } from 'lucide-react';
+import { Moon, Sun, Bell, BellOff, User, Eye } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import toast from 'react-hot-toast';
@@ -8,12 +8,29 @@ import toast from 'react-hot-toast';
 const Header = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    // Get from localStorage
+    const saved = localStorage.getItem('notificationsEnabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
-  const handleBell = () => {
-    toast('Notifications will appear here soon.', {
-      icon: '🔔',
-      duration: 2500,
-    });
+  // Save to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('notificationsEnabled', JSON.stringify(notificationsEnabled));
+  }, [notificationsEnabled]);
+
+  const handleBellToggle = () => {
+    setNotificationsEnabled(!notificationsEnabled);
+    if (!notificationsEnabled) {
+      toast.success('Notifications enabled ✅', {
+        icon: '🔔',
+        duration: 2000,
+      });
+    } else {
+      toast('Notifications disabled 🔕', {
+        duration: 2000,
+      });
+    }
   };
 
   return (
@@ -55,13 +72,23 @@ const Header = () => {
             </button>
 
             <button
-              onClick={handleBell}
-              className="p-2 rounded-lg surface border border-app transition-colors relative"
-              aria-label="Notifications"
-              title="Notifications"
+              onClick={handleBellToggle}
+              className={`p-2 rounded-lg border transition-colors relative ${
+                notificationsEnabled 
+                  ? 'surface border-app hover:border-blue-500' 
+                  : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+              }`}
+              aria-label={notificationsEnabled ? 'Disable notifications' : 'Enable notifications'}
+              title={notificationsEnabled ? 'Click to disable notifications' : 'Click to enable notifications'}
             >
-              <Bell className="w-5 h-5 text-secondary" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              {notificationsEnabled ? (
+                <>
+                  <Bell className="w-5 h-5 text-blue-400" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full"></span>
+                </>
+              ) : (
+                <BellOff className="w-5 h-5 text-gray-500" />
+              )}
             </button>
 
             <div className="relative group">

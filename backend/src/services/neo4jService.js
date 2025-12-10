@@ -387,14 +387,22 @@ class Neo4jService {
     const session = this.driver.session();
     
       try {
+      let query = `MATCH (s:Screening) WHERE s.diagnosis IS NOT NULL`;
+      const params = {};
+      
+      if (userId) {
+        query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.diagnosis IS NOT NULL`;
+        params.personId = `USER_${userId}`;
+      }
+      
       const result = await session.run(`
-        MATCH (s:Screening) WHERE s.diagnosis IS NOT NULL
+        ${query}
         RETURN 
           s.diagnosis as diagnosis,
           COUNT(s) as count
         ORDER BY count DESC
         LIMIT 10
-      `);
+      `, params);
       
       console.log('📊 Diagnosis Distribution query result:', result.records.length, 'records');
       
@@ -432,16 +440,23 @@ class Neo4jService {
     const session = this.driver.session();
     
     try {
+      let query = `MATCH (s:Screening) WHERE s.timestamp IS NOT NULL`;
+      const params = {};
+      
+      if (userId) {
+        query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.timestamp IS NOT NULL`;
+        params.personId = `USER_${userId}`;
+      }
+      
       const result = await session.run(`
-        MATCH (s:Screening) WHERE s.timestamp IS NOT NULL
+        ${query}
         WITH 
           date.truncate('month', datetime(s.timestamp)) as month,
           COUNT(s) as count
         RETURN 
           toString(month) as month,
           count
-        ORDER BY month DESC
-        LIMIT 12
+        ORDER BY month ASC
       `, params);
       
       console.log('📊 Monthly Trends query result:', result.records.length, 'records');
@@ -449,12 +464,22 @@ class Neo4jService {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       
       const data = result.records.map(record => {
-        const dateStr = record.get('month');
+        const dateStr = record.get('month'); // Format: 2025-12-01
         let monthName = 'Unknown';
-        if (dateStr) {
-          const monthNum = new Date(dateStr).getMonth();
-          monthName = months[monthNum] || 'Unknown';
+        let monthNum = -1;
+        
+        // Parse date string (format: YYYY-MM-DD)
+        if (dateStr && typeof dateStr === 'string') {
+          const parts = dateStr.split('-');
+          if (parts.length >= 2) {
+            monthNum = parseInt(parts[1]) - 1; // Convert to 0-indexed
+          }
         }
+        
+        if (monthNum >= 0 && monthNum < 12) {
+          monthName = months[monthNum];
+        }
+        
         const countVal = record.get('count');
         let count = 0;
         if (countVal && typeof countVal === 'object' && 'low' in countVal) {
@@ -466,7 +491,7 @@ class Neo4jService {
           month: monthName,
           count: parseInt(count) || 0
         };
-      }).reverse();
+      });
       
       console.log('📊 Monthly Trends data:', data);
       return data;
@@ -480,17 +505,25 @@ class Neo4jService {
   }
 
   // Get risk distribution - QUERY FROM SCREENING NODES
-  async getRiskDistribution() {
+  async getRiskDistribution(userId = null) {
     const session = this.driver.session();
     
     try {
+      let query = `MATCH (s:Screening)`;
+      const params = {};
+      
+      if (userId) {
+        query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening)`;
+        params.personId = `USER_${userId}`;
+      }
+      
       const result = await session.run(`
-        MATCH (s:Screening)
+        ${query}
         RETURN 
           s.insomniaRisk as insomniaRisk,
           s.apneaRisk as apneaRisk,
           COUNT(s) as count
-      `);
+      `, params);
       
       const distribution = {
         insomnia: { high: 0, moderate: 0, low: 0 },
@@ -524,25 +557,33 @@ class Neo4jService {
   }
 
   // Get top recommendations - BARU
-  async getTopRecommendations() {
+  async getTopRecommendations(userId = null) {
     const session = this.driver.session();
     
     try {
-      // Since recommendations are stored as JSON strings, we need to parse them
+      // Query from Screening nodes instead of Case nodes
+      let query = `MATCH (s:Screening) WHERE s.recommendations IS NOT NULL`;
+      const params = {};
+      
+      if (userId) {
+        query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.recommendations IS NOT NULL`;
+        params.personId = `USER_${userId}`;
+      }
+      
       const result = await session.run(`
-        MATCH (c:Case)
-        WHERE c.inputData IS NOT NULL
-        RETURN c.inputData as inputData
-        LIMIT 50
-      `);
+        ${query}
+        RETURN s.recommendations as recommendations
+        LIMIT 100
+      `, params);
       
       const recommendations = {};
       
       result.records.forEach(record => {
         try {
-          const inputData = JSON.parse(record.get('inputData'));
-          if (inputData.recommendations && Array.isArray(inputData.recommendations)) {
-            inputData.recommendations.forEach(rec => {
+          const recStr = record.get('recommendations');
+          const recs = typeof recStr === 'string' ? JSON.parse(recStr) : recStr;
+          if (recs && Array.isArray(recs)) {
+            recs.forEach(rec => {
               recommendations[rec] = (recommendations[rec] || 0) + 1;
             });
           }
