@@ -48,6 +48,7 @@ class Neo4jScreeningService {
             inputData: $inputData,
             facts: $facts,
             recommendations: $recommendations,
+            firedRules: $firedRules,
             firedRulesCount: $firedRulesCount
           })
           RETURN s
@@ -61,6 +62,7 @@ class Neo4jScreeningService {
           inputData: JSON.stringify(inputData),
           facts: JSON.stringify(results),
           recommendations: JSON.stringify(results.recommendations || []),
+          firedRules: JSON.stringify(results.firedRules || []),
           firedRulesCount: results.firedRules?.length || 0
         });
         
@@ -169,6 +171,7 @@ class Neo4jScreeningService {
             s.insomniaRisk as insomniaRisk,
             s.apneaRisk as apneaRisk,
             s.recommendations as recommendations,
+            s.firedRules as firedRules,
             s.firedRulesCount as firedRulesCount
           ORDER BY s.timestamp DESC
           SKIP $offset
@@ -184,6 +187,17 @@ class Neo4jScreeningService {
           // Return ISO timestamp for proper date parsing in frontend
           let isoTimestamp = timestamp ? timestamp.toString() : null;
           
+          // Parse firedRules
+          let firedRulesArray = [];
+          const firedRulesJson = record.get('firedRules');
+          if (firedRulesJson) {
+            try {
+              firedRulesArray = JSON.parse(firedRulesJson);
+            } catch (e) {
+              console.error('Error parsing firedRules:', e);
+            }
+          }
+          
           return {
             screeningId: record.get('screeningId'),
             timestamp: isoTimestamp,
@@ -192,6 +206,7 @@ class Neo4jScreeningService {
             insomniaRisk: record.get('insomniaRisk'),
             apneaRisk: record.get('apneaRisk'),
             recommendations: JSON.parse(record.get('recommendations') || '[]'),
+            firedRules: firedRulesArray,
             firedRulesCount: record.get('firedRulesCount').low || 0
           };
         });
@@ -252,18 +267,36 @@ class Neo4jScreeningService {
           });
         }
         
+        // Parse firedRules from stored JSON or use relation data
+        let firedRulesArray = [];
+        if (screening.firedRules) {
+          try {
+            firedRulesArray = JSON.parse(screening.firedRules);
+          } catch (e) {
+            console.error('Error parsing firedRules:', e);
+          }
+        }
+        
+        // Fallback to relation-based firedRules if property is empty
+        if (firedRulesArray.length === 0) {
+          const relationRules = record.get('firedRules') || [];
+          firedRulesArray = relationRules.filter(r => r); // Filter out null values
+        }
+        
+        const factsData = JSON.parse(screening.facts || '{}');
+        
         return {
           ...screening,
           readableTimestamp: displayTime,
-          firedRules: record.get('firedRules') || [],
+          firedRules: firedRulesArray,
           inputData: JSON.parse(screening.inputData || '{}'),
-          facts: JSON.parse(screening.facts || '{}'),
+          facts: factsData,
           recommendations: JSON.parse(screening.recommendations || '[]'),
           lifestyleIssues: {
-            activity: JSON.parse(screening.facts || '{}').lifestyle_issue_activity || false,
-            stress: JSON.parse(screening.facts || '{}').lifestyle_issue_stress || false,
-            sleep: JSON.parse(screening.facts || '{}').lifestyle_issue_sleep || false,
-            weight: JSON.parse(screening.facts || '{}').lifestyle_issue_weight || false
+            activity: factsData.lifestyle_issue_activity || false,
+            stress: factsData.lifestyle_issue_stress || false,
+            sleep: factsData.lifestyle_issue_sleep || false,
+            weight: factsData.lifestyle_issue_weight || false
           },
           timestamp: displayTime
         };

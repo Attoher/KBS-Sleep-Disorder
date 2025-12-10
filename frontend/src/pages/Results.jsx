@@ -72,6 +72,20 @@ const Results = () => {
       const screeningData = response.data.data || response.data;
       
       // Format the data for display
+      // Try to extract firedRules from multiple sources
+      let firedRulesArray = screeningData.firedRules || screeningData.firedRulesArray || [];
+      
+      // Fallback: extract from facts.firedRules if available
+      if ((!firedRulesArray || firedRulesArray.length === 0) && screeningData.facts) {
+        const facts = typeof screeningData.facts === 'string' 
+          ? JSON.parse(screeningData.facts) 
+          : screeningData.facts;
+        
+        if (facts.firedRules && Array.isArray(facts.firedRules)) {
+          firedRulesArray = facts.firedRules;
+        }
+      }
+      
       const formattedResults = {
         diagnosis: screeningData.diagnosis || 'No Sleep Disorder Detected',
         insomniaRisk: screeningData.insomniaRisk || 'low',
@@ -83,7 +97,7 @@ const Results = () => {
           weight: false
         },
         recommendations: screeningData.recommendations || [],
-        firedRules: screeningData.firedRules || [],
+        firedRules: firedRulesArray,
         inputData: screeningData.inputData || screeningData.inputSummary || {},
         facts: screeningData.facts || {},
         timestamp: screeningData.timestamp || screeningData.readableTimestamp || new Date().toISOString()
@@ -414,69 +428,41 @@ const Results = () => {
             </div>
           </motion.div>
 
-          {/* Rules Fired */}
-          {results.firedRules && results.firedRules.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">Rule Engine Analysis</h2>
-                <div className="text-sm text-gray-400">
-                  {results.firedRules.length} rules fired
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                {results.firedRules.map((ruleId, index) => (
-                  <div key={index} className="p-4 bg-gray-800/50 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-900 to-blue-800 flex items-center justify-center">
-                          <span className="text-xs font-bold text-white">{ruleId}</span>
-                        </div>
-                        <div>
-                          <div className="font-medium text-white">
-                            {RULE_DESCRIPTIONS[ruleId]?.split('→')[0]?.trim() || ruleId}
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            {RULE_DESCRIPTIONS[ruleId]?.split('→')[1]?.trim() || 'Medical rule triggered'}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm text-gray-400">
-                        Step {index + 1}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
           {/* Triggered Medical Rules */}
-          {results.firedRules && results.firedRules.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
-            >
-              <h2 className="text-2xl font-bold text-white mb-6">Triggered Medical Rules</h2>
-              <div className="flex flex-wrap gap-2">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white">Triggered Medical Rules</h2>
+              {results.firedRules && results.firedRules.length > 0 && (
+                <span className="text-sm text-gray-400">
+                  {results.firedRules.length} rules triggered
+                </span>
+              )}
+            </div>
+            {results.firedRules && results.firedRules.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
                 {results.firedRules.map((rule, index) => (
                   <span
                     key={index}
-                    className="px-4 py-2 bg-blue-500/10 text-blue-400 rounded-full text-sm font-medium border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                    className="px-4 py-2 bg-blue-500/10 text-blue-400 rounded-full text-sm font-medium border border-blue-500/20 hover:bg-blue-500/20 transition-colors cursor-default"
                   >
                     {rule}
                   </span>
                 ))}
               </div>
-            </motion.div>
-          )}
+            ) : (
+              <div className="text-center py-8 bg-gray-800/30 rounded-xl border border-gray-700/30">
+                <div className="text-gray-400 mb-2">No specific rules triggered</div>
+                <p className="text-sm text-gray-500">
+                  Your screening results are within normal parameters
+                </p>
+              </div>
+            )}
+          </motion.div>
 
           {/* Screening Input Data */}
           {results.inputData && Object.keys(results.inputData).length > 0 && (
