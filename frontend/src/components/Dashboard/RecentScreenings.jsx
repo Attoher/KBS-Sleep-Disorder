@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, AlertCircle, CheckCircle, Stethoscope } from 'lucide-react';
-import { format } from 'date-fns';
 
 const RecentScreenings = ({ screenings }) => {
   const getRiskColor = (risk) => {
@@ -14,10 +13,36 @@ const RecentScreenings = ({ screenings }) => {
   };
 
   const getDiagnosisIcon = (diagnosis) => {
-    if (diagnosis.includes('No Sleep')) {
+    if (diagnosis && diagnosis.includes('No Sleep')) {
       return <CheckCircle className="w-5 h-5 text-green-400" />;
     }
     return <AlertCircle className="w-5 h-5 text-yellow-400" />;
+  };
+
+  const formatTime = (timestamp) => {
+    if (!timestamp || timestamp === 'N/A') return 'Just now';
+    
+    try {
+      // Check if timestamp is already formatted
+      if (typeof timestamp === 'string' && timestamp.includes(',')) {
+        return timestamp;
+      }
+      
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return 'Just now';
+      
+      // Format to "Mon, Jan 1, 2024 · 2:30 PM"
+      return date.toLocaleString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return 'Just now';
+    }
   };
 
   return (
@@ -36,7 +61,7 @@ const RecentScreenings = ({ screenings }) => {
         {screenings?.map((screening, index) => (
           <Link
             key={index}
-            to={`/results?id=${screening.id}`}
+            to={`/results?id=${screening.screeningId}`}
             className="block p-4 surface-muted rounded-lg hover:shadow transition-colors"
           >
             <div className="flex items-center justify-between">
@@ -47,11 +72,9 @@ const RecentScreenings = ({ screenings }) => {
                   <div className="flex items-center space-x-4 text-sm text-secondary mt-1">
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-4 h-4" />
-                      <span>{format(new Date(screening.createdAt), 'MMM d, yyyy')}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{format(new Date(screening.createdAt), 'h:mm a')}</span>
+                      <span>
+                        {formatTime(screening.timestamp)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -62,13 +85,13 @@ const RecentScreenings = ({ screenings }) => {
                   <div>
                     <p className="text-sm text-secondary">Insomnia</p>
                     <p className={`font-medium ${getRiskColor(screening.insomniaRisk)}`}>
-                      {screening.insomniaRisk}
+                      {screening.insomniaRisk || 'unknown'}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-secondary">Apnea</p>
                     <p className={`font-medium ${getRiskColor(screening.apneaRisk)}`}>
-                      {screening.apneaRisk}
+                      {screening.apneaRisk || 'unknown'}
                     </p>
                   </div>
                 </div>

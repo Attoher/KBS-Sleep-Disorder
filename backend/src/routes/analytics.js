@@ -3,31 +3,31 @@ const router = express.Router();
 const analyticsController = require('../controllers/analyticsController');
 const { auth, optionalAuth } = require('../middleware/auth');
 
-// Analytics overview (protected)
+// Analytics overview (optional auth - allow public/guest access)
 router.get(
   '/overview',
-  auth,
+  optionalAuth,
   analyticsController.getOverview
 );
 
-// Rule analytics
+// Rule analytics (optional auth)
 router.get(
   '/rules',
-  auth,
+  optionalAuth,
   analyticsController.getRuleAnalytics
 );
 
-// Trends over time
+// Trends over time (optional auth)
 router.get(
   '/trends',
-  auth,
+  optionalAuth,
   analyticsController.getTrends
 );
 
-// Predictive insights
+// Predictive insights (optional auth)
 router.get(
   '/insights',
-  auth,
+  optionalAuth,
   analyticsController.getInsights
 );
 

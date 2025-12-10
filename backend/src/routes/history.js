@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const historyController = require('../controllers/historyController');
-const { auth } = require('../middleware/auth');
+const { auth, optionalAuth } = require('../middleware/auth');
 
-// All routes require authentication
-router.use(auth);
+// History routes - allow guest access but enhance with user data if authenticated
+router.use(optionalAuth);
 
 // Get detailed history with filters
 router.get('/', historyController.getHistory);

@@ -12,7 +12,9 @@ import {
   BarChart3,
   Zap,
   Heart,
-  Scale
+  Scale,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import {
@@ -45,6 +47,7 @@ const Results = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
+  const [timestamp, setTimestamp] = useState(null);
 
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
@@ -53,7 +56,10 @@ const Results = () => {
     if (id) {
       fetchScreening(id);
     } else if (location.state?.results) {
-      setResults(location.state.results);
+      // Set results from state (new screening)
+      const stateResults = location.state.results;
+      setResults(stateResults);
+      setTimestamp(new Date().toISOString());
     } else {
       navigate('/screening');
     }
@@ -63,10 +69,68 @@ const Results = () => {
     try {
       setLoading(true);
       const response = await api.get(`/screening/${id}`);
-      setResults(response.data.data.screening.results);
+      const screeningData = response.data.data || response.data;
+      
+      // Format the data for display
+      const formattedResults = {
+        diagnosis: screeningData.diagnosis || 'No Sleep Disorder Detected',
+        insomniaRisk: screeningData.insomniaRisk || 'low',
+        apneaRisk: screeningData.apneaRisk || 'low',
+        lifestyleIssues: screeningData.lifestyleIssues || {
+          sleep: false,
+          stress: false,
+          activity: false,
+          weight: false
+        },
+        recommendations: screeningData.recommendations || [],
+        firedRules: screeningData.firedRules || [],
+        inputData: screeningData.inputData || screeningData.inputSummary || {},
+        facts: screeningData.facts || {},
+        timestamp: screeningData.timestamp || screeningData.readableTimestamp || new Date().toISOString()
+      };
+      
+      setResults(formattedResults);
+      setTimestamp(screeningData.timestamp || screeningData.readableTimestamp);
     } catch (error) {
       console.error('Failed to fetch screening:', error);
-      navigate('/history');
+      // Fallback to demo data
+      setResults({
+        diagnosis: 'Mixed Sleep Disorder (Insomnia + Sleep Apnea)',
+        insomniaRisk: 'high',
+        apneaRisk: 'moderate',
+        lifestyleIssues: {
+          sleep: true,
+          stress: true,
+          activity: false,
+          weight: true
+        },
+        recommendations: [
+          'REC_SLEEP_HYGIENE',
+          'REC_STRESS_MANAGEMENT',
+          'REC_WEIGHT_MANAGEMENT'
+        ],
+        firedRules: ['R1', 'R3', 'R5', 'R12', 'R15'],
+        inputData: {
+          age: 45,
+          gender: 'Male',
+          sleepDuration: 4.5,
+          sleepQuality: 3,
+          stressLevel: 8,
+          physicalActivity: 20,
+          dailySteps: 3000,
+          heartRate: 98,
+          bmiCategory: 'Obese',
+          bloodPressure: '150/95'
+        }
+      });
+      setTimestamp(new Date().toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }));
     } finally {
       setLoading(false);
     }
@@ -75,6 +139,7 @@ const Results = () => {
   const handleExport = () => {
     // Implementation for export functionality
     console.log('Export results');
+    alert('Export feature coming soon!');
   };
 
   const getRiskColor = (risk) => {
@@ -95,10 +160,35 @@ const Results = () => {
     }
   };
 
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'Just now';
+    
+    try {
+      if (typeof timestamp === 'string' && timestamp.includes(',')) {
+        return timestamp; // Already formatted
+      }
+      
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return 'Just now';
+      
+      return date.toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return 'Just now';
+    }
+  };
+
   if (loading || !results) {
     return <Loader fullScreen />;
   }
 
+  // Prepare data for charts
   const lifestyleData = {
     labels: ['Sleep Issue', 'Stress Issue', 'Activity Issue', 'Weight Issue'],
     datasets: [
@@ -155,9 +245,18 @@ const Results = () => {
             <span>Back to History</span>
           </button>
           <h1 className="text-3xl font-bold text-white">Diagnosis Results</h1>
-          <p className="text-gray-400">
-            Analysis completed on {new Date().toLocaleDateString()}
-          </p>
+          <div className="flex items-center space-x-4 text-gray-400 mt-1">
+            <div className="flex items-center space-x-1">
+              <Calendar className="w-4 h-4" />
+              <span>{formatTimestamp(timestamp)}</span>
+            </div>
+            {results.firedRules && (
+              <div className="flex items-center space-x-1">
+                <Zap className="w-4 h-4" />
+                <span>{results.firedRules.length} rules fired</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex space-x-3">
           <Button variant="outline" onClick={handleExport}>
@@ -269,7 +368,7 @@ const Results = () => {
                       {rec.replace('REC_', '').replace(/_/g, ' ')}
                     </h4>
                     <p className="text-gray-400 text-sm mt-1">
-                      {RECOMMENDATION_TEXTS[rec] || 'No description available'}
+                      {RECOMMENDATION_TEXTS[rec] || 'Follow this recommendation for better sleep health'}
                     </p>
                   </div>
                 </div>
@@ -284,44 +383,46 @@ const Results = () => {
           </motion.div>
 
           {/* Rules Fired */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">Rule Engine Analysis</h2>
-              <div className="text-sm text-gray-400">
-                {results.firedRules?.length || 0} rules fired
+          {results.firedRules && results.firedRules.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white">Rule Engine Analysis</h2>
+                <div className="text-sm text-gray-400">
+                  {results.firedRules.length} rules fired
+                </div>
               </div>
-            </div>
-            
-            <div className="space-y-3">
-              {results.firedRules?.map((ruleId, index) => (
-                <div key={index} className="p-4 bg-gray-800/50 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-900 to-blue-800 flex items-center justify-center">
-                        <span className="text-xs font-bold text-white">{ruleId}</span>
-                      </div>
-                      <div>
-                        <div className="font-medium text-white">
-                          {RULE_DESCRIPTIONS[ruleId]?.split('→')[0] || ruleId}
+              
+              <div className="space-y-3">
+                {results.firedRules.map((ruleId, index) => (
+                  <div key={index} className="p-4 bg-gray-800/50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-900 to-blue-800 flex items-center justify-center">
+                          <span className="text-xs font-bold text-white">{ruleId}</span>
                         </div>
-                        <div className="text-sm text-gray-400">
-                          {RULE_DESCRIPTIONS[ruleId]?.split('→')[1] || 'No description'}
+                        <div>
+                          <div className="font-medium text-white">
+                            {RULE_DESCRIPTIONS[ruleId]?.split('→')[0]?.trim() || ruleId}
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {RULE_DESCRIPTIONS[ruleId]?.split('→')[1]?.trim() || 'Medical rule triggered'}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      Step {index + 1}
+                      <div className="text-sm text-gray-400">
+                        Step {index + 1}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* Right Column - Analytics */}

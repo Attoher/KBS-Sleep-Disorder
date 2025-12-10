@@ -8,13 +8,27 @@ import {
   Trash2,
   Eye
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import Button from '../Common/Button';
 
 const HistoryTable = ({ screenings, onRefresh }) => {
   const [loading, setLoading] = useState(false);
+
+  // Helper function to safely format dates
+  const formatDate = (dateValue, formatString) => {
+    if (!dateValue) return 'N/A';
+    
+    try {
+      const date = new Date(dateValue);
+      if (!isValid(date)) return 'N/A';
+      return format(date, formatString);
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return 'N/A';
+    }
+  };
 
   const handleExport = async (screeningId) => {
     try {
@@ -105,17 +119,17 @@ const HistoryTable = ({ screenings, onRefresh }) => {
         </thead>
         <tbody className="divide-y divide-gray-700/50 bg-gray-900/30">
           {screenings.map((screening) => (
-            <tr key={screening.id} className="hover:bg-gray-800/50 transition-colors">
+            <tr key={screening.screeningId || screening.id} className="hover:bg-gray-800/50 transition-colors">
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <div>
                     <div className="text-sm text-white">
-                      {format(new Date(screening.createdAt), 'MMM d, yyyy')}
+                      {formatDate(screening.timestamp || screening.createdAt || screening.readableTimestamp, 'MMM d, yyyy')}
                     </div>
                     <div className="text-xs text-gray-400 flex items-center">
                       <Clock className="w-3 h-3 mr-1" />
-                      {format(new Date(screening.createdAt), 'h:mm a')}
+                      {formatDate(screening.timestamp || screening.createdAt || screening.readableTimestamp, 'h:mm a')}
                     </div>
                   </div>
                 </div>
@@ -164,7 +178,7 @@ const HistoryTable = ({ screenings, onRefresh }) => {
                   <Button
                     variant="outline"
                     size="small"
-                    onClick={() => window.location.href = `/results?id=${screening.id}`}
+                    onClick={() => window.location.href = `/results?id=${screening.screeningId}`}
                   >
                     <Eye className="w-4 h-4" />
                   </Button>
@@ -172,7 +186,7 @@ const HistoryTable = ({ screenings, onRefresh }) => {
                   <Button
                     variant="outline"
                     size="small"
-                    onClick={() => handleExport(screening.id)}
+                    onClick={() => handleExport(screening.screeningId)}
                   >
                     <Download className="w-4 h-4" />
                   </Button>
@@ -180,7 +194,7 @@ const HistoryTable = ({ screenings, onRefresh }) => {
                   <Button
                     variant="danger"
                     size="small"
-                    onClick={() => handleDelete(screening.id)}
+                    onClick={() => handleDelete(screening.screeningId)}
                     disabled={loading}
                   >
                     <Trash2 className="w-4 h-4" />

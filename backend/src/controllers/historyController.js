@@ -1,10 +1,80 @@
 const neo4jScreeningService = require('../services/neo4jScreeningService');
 const { driver } = require('../config/neo4j');
 
+// Helper function for getting history statistics
+async function getHistoryStatistics(userId) {
+  const session = driver.session();
+  
+  try {
+    const personId = `USER_${userId}`;
+    
+    const result = await session.executeRead(async tx => {
+      const response = await tx.run(`
+        MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening)
+        WITH COUNT(DISTINCT s) as totalScreenings,
+             COLLECT(DISTINCT s.diagnosis) as diagnoses
+        RETURN 
+          totalScreenings,
+          diagnoses[0] as mostCommonDiagnosis
+      `, { personId });
+      
+      if (response.records.length === 0) {
+        return {
+          totalScreenings: 0,
+          diagnosisDistribution: [],
+          topRecommendations: [],
+          mostCommonDiagnosis: 'N/A'
+        };
+      }
+      
+      const record = response.records[0];
+      return {
+        totalScreenings: record.get('totalScreenings').low || 0,
+        diagnosisDistribution: [],
+        topRecommendations: [],
+        mostCommonDiagnosis: record.get('mostCommonDiagnosis') || 'N/A'
+      };
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Get statistics error:', error);
+    return {
+      totalScreenings: 0,
+      diagnosisDistribution: [],
+      topRecommendations: []
+    };
+  } finally {
+    await session.close();
+  }
+}
+
 class HistoryController {
   // Get detailed history with filters
   async getHistory(req, res) {
     try {
+      // If not authenticated, return empty history
+      if (!req.user) {
+        return res.json({
+          success: true,
+          data: {
+            screenings: [],
+            pagination: {
+              page: 1,
+              limit: 20,
+              total: 0,
+              pages: 0
+            },
+            statistics: {
+              totalScreenings: 0,
+              diagnosisDistribution: [],
+              topRecommendations: [],
+              mostCommonDiagnosis: 'N/A'
+            }
+          }
+        });
+      }
+
       const userId = req.user.id;
       const {
         page = 1,
@@ -29,7 +99,7 @@ class HistoryController {
       );
       
       // Get statistics
-      const statistics = await this.getHistoryStatistics(userId);
+      const statistics = await getHistoryStatistics(userId);
       
       res.json({
         success: true,
@@ -49,70 +119,24 @@ class HistoryController {
     }
   }
   
-  // Get history statistics
-  async getHistoryStatistics(userId) {
-    const session = driver.session();
-    
-    try {
-      const personId = `USER_${userId}`;
-      
-      const result = await session.executeRead(async tx => {
-        const response = await tx.run(`
-          MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening)
-          OPTIONAL MATCH (s)-[:HAS_DIAGNOSIS]->(d:Diagnosis)
-          WITH 
-            COUNT(DISTINCT s) as totalScreenings,
-            COLLECT(DISTINCT d.name) as diagnoses
-          
-          MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening)
-          WITH totalScreenings, diagnoses,
-               s.diagnosis as diagnosis,
-               COUNT(s) as diagnosisCount
-          ORDER BY diagnosisCount DESC
-          RETURN 
-            totalScreenings,
-            COLLECT({diagnosis: diagnosis, count: diagnosisCount}) as diagnosisDistribution,
-            diagnoses
-        `, { personId });
-        
-        if (response.records.length === 0) {
-          return {
-            totalScreenings: 0,
-            diagnosisDistribution: [],
-            topRecommendations: []
-          };
-        }
-        
-        const record = response.records[0];
-        return {
-          totalScreenings: record.get('totalScreenings').low || 0,
-          diagnosisDistribution: record.get('diagnosisDistribution').map(d => ({
-            diagnosis: d.diagnosis,
-            count: d.count.low
-          })),
-          topRecommendations: [],
-          mostCommonDiagnosis: record.get('diagnoses')[0] || 'N/A'
-        };
-      });
-      
-      return result;
-    } catch (error) {
-      console.error('Get statistics error:', error);
-      return {
-        totalScreenings: 0,
-        diagnosisDistribution: [],
-        topRecommendations: []
-      };
-    } finally {
-      await session.close();
-    }
-  }
-  
   // Get screening analytics
   async getAnalytics(req, res) {
     try {
+      // If not authenticated, return empty analytics
+      if (!req.user) {
+        return res.json({
+          success: true,
+          data: {
+            totalScreenings: 0,
+            diagnosisDistribution: [],
+            topRecommendations: [],
+            mostCommonDiagnosis: 'N/A'
+          }
+        });
+      }
+
       const userId = req.user.id;
-      const statistics = await this.getHistoryStatistics(userId);
+      const statistics = await getHistoryStatistics(userId);
       
       res.json({
         success: true,
@@ -228,6 +252,22 @@ class HistoryController {
     const session = driver.session();
     
     try {
+      // If not authenticated, return empty archived list
+      if (!req.user) {
+        return res.json({
+          success: true,
+          data: {
+            screenings: [],
+            pagination: {
+              page: 1,
+              limit: 20,
+              total: 0,
+              pages: 0
+            }
+          }
+        });
+      }
+
       const userId = req.user.id;
       const { page = 1, limit = 20 } = req.query;
       const personId = `USER_${userId}`;

@@ -20,33 +20,124 @@ const Dashboard = () => {
     recentScreenings: [],
     analytics: null
   });
+  const [dynamicStats, setDynamicStats] = useState({
+    weekGrowth: 0,
+    todayNew: 0,
+    totalAll: 0,
+    avgRulesFired: 0,
+    mostCommonDiagnosis: 'N/A'
+  });
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
+  const calculateDynamicStats = (screenings, analytics) => {
+    if (!screenings || screenings.length === 0) {
+      return {
+        weekGrowth: 0,
+        todayNew: 0,
+        totalAll: analytics?.statistics?.totalScreenings || 0,
+        avgRulesFired: analytics?.statistics?.avgRulesFired || 0,
+        mostCommonDiagnosis: analytics?.statistics?.mostCommonDiagnosis || 'N/A'
+      };
+    }
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Count today's screenings
+    const todayScreenings = screenings.filter(s => {
+      const dateStr = s.timestamp || s.createdAt || s.readableTimestamp;
+      if (dateStr) {
+        const screeningDate = new Date(dateStr);
+        return screeningDate >= todayStart;
+      }
+      return false;
+    }).length;
+
+    // Count this week's screenings
+    const weekScreenings = screenings.filter(s => {
+      const dateStr = s.timestamp || s.createdAt || s.readableTimestamp;
+      if (dateStr) {
+        const screeningDate = new Date(dateStr);
+        return screeningDate >= weekStart;
+      }
+      return false;
+    }).length;
+
+    // Calculate week growth percentage
+    const lastWeekScreenings = screenings.filter(s => {
+      const dateStr = s.timestamp || s.createdAt || s.readableTimestamp;
+      if (dateStr) {
+        const screeningDate = new Date(dateStr);
+        return screeningDate >= new Date(weekStart.getTime() - 7 * 24 * 60 * 60 * 1000) && 
+               screeningDate < weekStart;
+      }
+      return false;
+    }).length;
+
+    const weekGrowth = lastWeekScreenings > 0 
+      ? Math.round(((weekScreenings - lastWeekScreenings) / lastWeekScreenings) * 100)
+      : (weekScreenings > 0 ? 100 : 0);
+
+    return {
+      weekGrowth,
+      todayNew: todayScreenings,
+      totalAll: analytics?.statistics?.totalScreenings || screenings.length,
+      avgRulesFired: analytics?.statistics?.avgRulesFired || 0,
+      mostCommonDiagnosis: analytics?.statistics?.mostCommonDiagnosis || 'N/A'
+    };
+  };
+
   const fetchDashboardData = async () => {
     try {
-      const [statsResponse, screeningsResponse, analyticsResponse] = await Promise.all([
-        api.get('/analytics/overview?timeframe=today'),
-        // Use authenticated history endpoint so we don't silently fall back to guest/empty data
-        api.get('/history?limit=5'),
-        api.get('/analytics/public/overview')
-      ]);
-
+      setLoading(true);
+      
+      // Fetch analytics data first (includes statistics)
+      const analyticsResponse = await api.get('/analytics/overview?timeframe=today');
+      const analytics = analyticsResponse.data.data;
+      
+      // Fetch recent screenings
+      const screeningsResponse = await api.get('/history?limit=5');
+      const screenings = screeningsResponse.data.data.screenings || [];
+      
+      // Calculate dynamic stats from analytics
+      const stats = calculateDynamicStats(screenings, analytics);
+      
+      setDynamicStats(stats);
       setDashboardData({
-        stats: statsResponse.data.data.statistics,
-        recentScreenings: screeningsResponse.data.data.screenings,
-        analytics: analyticsResponse.data.data
+        stats: analytics.statistics,
+        recentScreenings: screenings,
+        analytics: analytics
       });
+      
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      // Set fallback data
+      setDynamicStats({
+        weekGrowth: 0,
+        todayNew: 0,
+        totalAll: 0,
+        avgRulesFired: 0,
+        mostCommonDiagnosis: 'N/A'
+      });
+      setDashboardData({
+        stats: {
+          totalScreenings: 0,
+          avgRulesFired: 0,
+          mostCommonDiagnosis: 'N/A'
+        },
+        recentScreenings: [],
+        analytics: null
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading && !dashboardData.recentScreenings.length) {
     return <Loader fullScreen />;
   }
 
@@ -69,31 +160,31 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - SEMUA DINAMIS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Screenings"
-          value={dashboardData.stats?.totalScreenings || 0}
+          value={dynamicStats.totalAll}
           icon={Stethoscope}
-          trend="+12%"
-          description="from last week"
+          trend={dynamicStats.weekGrowth > 0 ? `+${dynamicStats.weekGrowth}%` : (dynamicStats.weekGrowth < 0 ? `${dynamicStats.weekGrowth}%` : '')}
+          description={dynamicStats.weekGrowth !== 0 ? 'from last week' : 'total screenings'}
           color="blue"
           delay={0.1}
         />
         
         <StatsCard
           title="Today's Cases"
-          value={dashboardData.stats?.todayCases || 0}
+          value={dynamicStats.todayNew}
           icon={Users}
-          trend="+5"
-          description="new today"
+          trend=""
+          description={dynamicStats.todayNew === 1 ? 'case today' : 'cases today'}
           color="purple"
           delay={0.2}
         />
         
         <StatsCard
           title="Most Common"
-          value={dashboardData.stats?.mostCommonDiagnosis || 'N/A'}
+          value={dynamicStats.mostCommonDiagnosis}
           icon={TrendingUp}
           trend=""
           description="diagnosis"
@@ -103,7 +194,7 @@ const Dashboard = () => {
         
         <StatsCard
           title="Avg. Rules Fired"
-          value={dashboardData.stats?.avgRulesFired?.toFixed(1) || '0.0'}
+          value={dynamicStats.avgRulesFired}
           icon={Activity}
           trend=""
           description="per case"
