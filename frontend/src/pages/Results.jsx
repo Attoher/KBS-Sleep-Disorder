@@ -160,6 +160,38 @@ const Results = () => {
     }
   };
 
+  // Calculate confidence based on rules fired and risk levels
+  const calculateConfidence = () => {
+    if (!results) return 50;
+
+    let confidence = 50; // Base confidence
+
+    // Add points based on number of rules fired (max 20 points)
+    const rulesCount = results.firedRules?.length || 0;
+    confidence += Math.min((rulesCount / 25) * 20, 20);
+
+    // Add points based on insomnia risk (max 15 points)
+    const insomniaRiskValue = {
+      'high': 15,
+      'moderate': 10,
+      'low': 5,
+      'unknown': 2
+    };
+    confidence += insomniaRiskValue[results.insomniaRisk?.toLowerCase()] || 2;
+
+    // Add points based on apnea risk (max 15 points)
+    const apneaRiskValue = {
+      'high': 15,
+      'moderate': 10,
+      'low': 5,
+      'unknown': 2
+    };
+    confidence += apneaRiskValue[results.apneaRisk?.toLowerCase()] || 2;
+
+    // Cap confidence at 99%
+    return Math.min(Math.round(confidence), 99);
+  };
+
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'Just now';
     
@@ -299,7 +331,7 @@ const Results = () => {
               </div>
               <div className="text-right">
                 <div className="text-sm text-gray-400">Confidence</div>
-                <div className="text-2xl font-bold text-green-400">94%</div>
+                <div className="text-2xl font-bold text-green-400">{calculateConfidence()}%</div>
               </div>
             </div>
 

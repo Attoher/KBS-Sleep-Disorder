@@ -432,16 +432,8 @@ class Neo4jService {
     const session = this.driver.session();
     
     try {
-      let query = `MATCH (s:Screening) WHERE s.timestamp IS NOT NULL`;
-      const params = {};
-      
-      if (userId) {
-        query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.timestamp IS NOT NULL`;
-        params.personId = `USER_${userId}`;
-      }
-      
       const result = await session.run(`
-        ${query}
+        MATCH (s:Screening) WHERE s.timestamp IS NOT NULL
         WITH 
           date.truncate('month', datetime(s.timestamp)) as month,
           COUNT(s) as count
