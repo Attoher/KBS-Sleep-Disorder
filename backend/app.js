@@ -127,8 +127,9 @@ async function startServer() {
       console.log('[SUCCESS] SQLite connection established successfully.');
       
       // Sync User model
-      await sqliteDb.sync({ alter: true });
-      console.log('[SUCCESS] User model synchronized with SQLite.');
+      // Use plain sync to avoid SQLite backup-table copy errors when legacy data has duplicate/null IDs
+      await sqliteDb.sync();
+      console.log('[SUCCESS] User model synchronized with SQLite (no alter).');
       
       // Initialize Neo4j schema (for screening data)
       await initNeo4jSchema();
