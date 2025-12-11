@@ -1,0 +1,21 @@
+{
+  "buildCommand": "npm run build --prefix frontend",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "npm install --prefix frontend && npm install --prefix backend",
+  "env": {
+    "VITE_API_URL": "@vite-api-url",
+    "VITE_API_BASE_URL": "@vite-api-base-url"
+  },
+  "functions": {
+    "backend/app.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/backend/app.js"
+    }
+  ]
+}
