@@ -1,19 +1,42 @@
 const sequelize = require('../config/database');
+const sqliteDb = require('../config/sqlite');
 const User = require('../models/User');
 const Screening = require('../models/Screening');
 
 async function initDatabase() {
   console.log('[SETUP] Starting database initialization...');
-  
+
   try {
-    // Test connection
+    // Test PostgreSQL connection
     await sequelize.authenticate();
-    console.log('[SUCCESS] Database connection established');
-    
-    // Sync all models (creates tables if they don't exist)
-    await sequelize.sync({ force: false, alter: true });
-    console.log('[SUCCESS] Database models synchronized');
-    
+    console.log('[SUCCESS] PostgreSQL connection established');
+
+    // Create Users table in PostgreSQL first (required for Screenings foreign key)
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS "Users" (
+        "id" UUID PRIMARY KEY,
+        "name" VARCHAR(255) NOT NULL,
+        "email" VARCHAR(255) NOT NULL UNIQUE,
+        "password" VARCHAR(255) NOT NULL,
+        "age" INTEGER,
+        "gender" VARCHAR(10),
+        "role" VARCHAR(20) DEFAULT 'user',
+        "isActive" BOOLEAN DEFAULT true,
+        "lastLogin" TIMESTAMP WITH TIME ZONE,
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+    console.log('[SUCCESS] Users table created in PostgreSQL');
+
+    // Sync Screening model (creates Screenings table)
+    await Screening.sync({ force: false, alter: true });
+    console.log('[SUCCESS] Screenings table synchronized');
+
+    // Also sync SQLite for User model (local auth storage)
+    await sqliteDb.sync({ force: false });
+    console.log('[SUCCESS] SQLite database synchronized');
+
     // Create indexes
     await sequelize.query(`
       -- Create indexes for better query performance
@@ -26,12 +49,12 @@ async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_screenings_insomnia_risk ON "Screenings" ("insomniaRisk");
       CREATE INDEX IF NOT EXISTS idx_screenings_apnea_risk ON "Screenings" ("apneaRisk");
     `);
-    
+
     console.log('[SUCCESS] Database indexes created');
-    
+
     // Check if admin user exists, create if not
     const adminExists = await User.findOne({ where: { email: 'admin@sleephealth.com' } });
-    
+
     if (!adminExists) {
       await User.create({
         name: 'System Administrator',
@@ -41,9 +64,9 @@ async function initDatabase() {
       });
       console.log('[SUCCESS] Default admin user created');
     }
-    
+
     console.log('[COMPLETE] Database initialization completed successfully!');
-    
+
   } catch (error) {
     console.error('[ERROR] Database initialization failed:', error);
     throw error;
