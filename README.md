@@ -1,5 +1,7 @@
 # RSBP Sleep Health Knowledge-Based System
 
+<img width="1919" height="957" alt="image" src="https://github.com/user-attachments/assets/a4c85f2a-08c1-4ba4-8e70-7e43c823a7b3" />
+
 A full-stack knowledge-based system for sleep health screening and diagnosis. Built with React (frontend) and Express/PostgreSQL/Neo4j (backend), featuring a forward-chaining rule inference engine with 40+ medical rules for sleep disorder detection.
 
 ## System Architecture
