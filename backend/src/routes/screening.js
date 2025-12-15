@@ -25,8 +25,21 @@ router.get(
 
 router.delete(
   '/:id',
-  auth,
+  optionalAuth,
   screeningController.deleteScreening
+);
+
+// Bulk deletion routes
+router.post(
+  '/delete-multiple',
+  optionalAuth,
+  screeningController.deleteMultipleScreenings
+);
+
+router.delete(
+  '/delete-all',
+  optionalAuth,
+  screeningController.deleteAllScreenings
 );
 
 router.get(

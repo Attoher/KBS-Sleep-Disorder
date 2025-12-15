@@ -15,8 +15,10 @@ import api from '../utils/api';
 import StatsCard from '../components/Dashboard/StatsCard';
 import RecentScreenings from '../components/Dashboard/RecentScreenings';
 import Loader from '../components/Common/Loader';
+import { useAuth } from '../contexts/AuthContext';
 
 const Dashboard = () => {
+  const { guestMode, getGuestScreenings } = useAuth();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     stats: null,
@@ -38,10 +40,10 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
     fetchSystemStatus();
-    
+
     // Refresh system status every 30 seconds
     const healthCheckInterval = setInterval(fetchSystemStatus, 30000);
-    
+
     return () => clearInterval(healthCheckInterval);
   }, []);
 
@@ -85,13 +87,13 @@ const Dashboard = () => {
       const dateStr = s.timestamp || s.createdAt || s.readableTimestamp;
       if (dateStr) {
         const screeningDate = new Date(dateStr);
-        return screeningDate >= new Date(weekStart.getTime() - 7 * 24 * 60 * 60 * 1000) && 
-               screeningDate < weekStart;
+        return screeningDate >= new Date(weekStart.getTime() - 7 * 24 * 60 * 60 * 1000) &&
+          screeningDate < weekStart;
       }
       return false;
     }).length;
 
-    const weekGrowth = lastWeekScreenings > 0 
+    const weekGrowth = lastWeekScreenings > 0
       ? Math.round(((weekScreenings - lastWeekScreenings) / lastWeekScreenings) * 100)
       : (weekScreenings > 0 ? 100 : 0);
 
@@ -107,25 +109,46 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch analytics data first (includes statistics)
+
+      // If guest mode, load from localStorage
+      if (guestMode) {
+        const guestScreenings = getGuestScreenings();
+
+        // Calculate stats from guest screenings
+        const stats = calculateDynamicStats(guestScreenings, null);
+
+        setDynamicStats(stats);
+        setDashboardData({
+          stats: {
+            totalScreenings: guestScreenings.length,
+            avgRulesFired: stats.avgRulesFired,
+            mostCommonDiagnosis: stats.mostCommonDiagnosis
+          },
+          recentScreenings: guestScreenings.slice(0, 5),
+          analytics: null
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Fetch analytics data first (includes statistics) - for authenticated users only
       const analyticsResponse = await api.get('/analytics/overview?timeframe=today');
       const analytics = analyticsResponse.data.data;
-      
+
       // Fetch all screenings for accurate stats calculation
       const screeningsResponse = await api.get('/history');
       const screenings = screeningsResponse.data.data.screenings || [];
-      
+
       // Calculate dynamic stats from analytics
       const stats = calculateDynamicStats(screenings, analytics);
-      
+
       setDynamicStats(stats);
       setDashboardData({
         stats: analytics.statistics,
         recentScreenings: screenings.slice(0, 5), // Show only 5 most recent
         analytics: analytics
       });
-      
+
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
       // Set fallback data
@@ -156,10 +179,10 @@ const Dashboard = () => {
       const baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
       const response = await fetch(`${baseURL}/health`);
       const data = await response.json();
-      
+
       // If we have screenings loaded, database must be working
       const hasData = dashboardData.recentScreenings && dashboardData.recentScreenings.length > 0;
-      
+
       // Override status if data is present - means database actually works
       if (hasData && data.services.sqlite_auth?.status === 'disconnected') {
         data.services.sqlite_auth = { status: 'connected', message: 'SQLite online (verified by loaded data)' };
@@ -167,7 +190,7 @@ const Dashboard = () => {
       if (hasData && data.services.neo4j?.status === 'disconnected') {
         data.services.neo4j = { status: 'connected', message: 'Neo4j online (verified by loaded data)' };
       }
-      
+
       setSystemStatus({
         status: data.status,
         uptime: data.uptime,
@@ -220,7 +243,7 @@ const Dashboard = () => {
           color="blue"
           delay={0.1}
         />
-        
+
         <StatsCard
           title="Today's Cases"
           value={dynamicStats.todayNew}
@@ -230,7 +253,7 @@ const Dashboard = () => {
           color="purple"
           delay={0.2}
         />
-        
+
         <StatsCard
           title="Most Common"
           value={dynamicStats.mostCommonDiagnosis}
@@ -240,7 +263,7 @@ const Dashboard = () => {
           color="green"
           delay={0.3}
         />
-        
+
         <StatsCard
           title="Avg. Rules Fired"
           value={dynamicStats.avgRulesFired}
@@ -275,7 +298,7 @@ const Dashboard = () => {
                 <span className="font-medium">New Screening</span>
                 <Stethoscope className="w-5 h-5" />
               </button>
-              
+
               <button
                 onClick={() => window.location.href = '/history'}
                 className="w-full p-4 bg-gray-700 rounded-lg text-gray-300 hover:bg-gray-600 transition-colors flex items-center justify-between"
@@ -283,7 +306,7 @@ const Dashboard = () => {
                 <span className="font-medium">View History</span>
                 <Calendar className="w-5 h-5" />
               </button>
-              
+
               <button
                 onClick={() => window.location.href = '/analytics'}
                 className="w-full p-4 bg-gray-700 rounded-lg text-gray-300 hover:bg-gray-600 transition-colors flex items-center justify-between"
@@ -294,126 +317,43 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* System Status - DINAMIS */}
+          {/* System Status - SIMPLIFIED */}
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-white flex items-center space-x-2">
                 <span>System Status</span>
-                <span className={`w-2 h-2 rounded-full ${
-                  systemStatus.status === 'healthy' ? 'bg-green-500' : 
-                  systemStatus.status === 'degraded' ? 'bg-yellow-500' : 
-                  'bg-red-500'
-                }`}></span>
+                <span className={`w-2 h-2 rounded-full ${systemStatus.status === 'healthy' ? 'bg-green-500' :
+                  systemStatus.status === 'degraded' ? 'bg-yellow-500' :
+                    'bg-red-500'
+                  }`}></span>
               </h3>
-              <span className={`text-xs font-medium px-2 py-1 rounded ${
-                systemStatus.status === 'healthy' ? 'bg-green-500/20 text-green-300' : 
-                systemStatus.status === 'degraded' ? 'bg-yellow-500/20 text-yellow-300' : 
-                'bg-red-500/20 text-red-300'
-              }`}>
+              <span className={`text-xs font-medium px-2 py-1 rounded ${systemStatus.status === 'healthy' ? 'bg-green-500/20 text-green-300' :
+                systemStatus.status === 'degraded' ? 'bg-yellow-500/20 text-yellow-300' :
+                  'bg-red-500/20 text-red-300'
+                }`}>
                 {systemStatus.status?.toUpperCase() || 'CHECKING'}
               </span>
             </div>
 
-            <div className="space-y-3">
-              {/* API Server */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    systemStatus.services?.api_server?.status === 'connected' ? 'bg-green-500' : 'bg-red-500'
-                  }`}></div>
-                  <span className="text-gray-300">API Server</span>
-                </div>
-                <div className="text-right">
-                  <span className={`text-sm font-medium ${
-                    systemStatus.services?.api_server?.status === 'connected' ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {systemStatus.services?.api_server?.status === 'connected' ? 'Online' : 'Offline'}
-                  </span>
-                  {systemStatus.services?.api_server?.message && (
-                    <p className="text-xs text-gray-400">{systemStatus.services.api_server.message}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* PostgreSQL/SQLite */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    systemStatus.services?.sqlite_auth?.status === 'connected' ? 'bg-green-500' : 
-                    systemStatus.services?.sqlite_auth?.status === 'skipped' ? 'bg-gray-500' : 'bg-red-500'
-                  }`}></div>
-                  <span className="text-gray-300">Database</span>
-                </div>
-                <div className="text-right">
-                  <span className={`text-sm font-medium ${
-                    systemStatus.services?.sqlite_auth?.status === 'connected' ? 'text-green-400' : 
-                    systemStatus.services?.sqlite_auth?.status === 'skipped' ? 'text-gray-400' : 'text-red-400'
-                  }`}>
-                    {systemStatus.services?.sqlite_auth?.status === 'connected' ? 'Connected' : 
-                     systemStatus.services?.sqlite_auth?.status === 'skipped' ? 'Offline Mode' : 'Error'}
-                  </span>
-                  {systemStatus.services?.sqlite_auth?.message && (
-                    <p className="text-xs text-gray-400">{systemStatus.services.sqlite_auth.message}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Neo4j Graph */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    systemStatus.services?.neo4j?.status === 'connected' ? 'bg-green-500' : 
-                    systemStatus.services?.neo4j?.status === 'skipped' ? 'bg-gray-500' : 'bg-red-500'
-                  }`}></div>
-                  <span className="text-gray-300">Graph DB</span>
-                </div>
-                <div className="text-right">
-                  <span className={`text-sm font-medium ${
-                    systemStatus.services?.neo4j?.status === 'connected' ? 'text-green-400' : 
-                    systemStatus.services?.neo4j?.status === 'skipped' ? 'text-gray-400' : 'text-red-400'
-                  }`}>
-                    {systemStatus.services?.neo4j?.status === 'connected' ? 'Connected' : 
-                     systemStatus.services?.neo4j?.status === 'skipped' ? 'Offline Mode' : 'Error'}
-                  </span>
-                  {systemStatus.services?.neo4j?.message && (
-                    <p className="text-xs text-gray-400">{systemStatus.services.neo4j.message}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Rule Engine */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    systemStatus.services?.rule_engine?.status === 'active' ? 'bg-green-500' : 'bg-red-500'
-                  }`}></div>
-                  <span className="text-gray-300">Rule Engine</span>
-                </div>
-                <div className="text-right">
-                  <span className={`text-sm font-medium ${
-                    systemStatus.services?.rule_engine?.status === 'active' ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {systemStatus.services?.rule_engine?.status === 'active' ? 'Active' : 'Offline'}
-                  </span>
-                  {systemStatus.services?.rule_engine?.message && (
-                    <p className="text-xs text-gray-400">{systemStatus.services.rule_engine.message}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Last Updated */}
-              {systemStatus.timestamp && (
-                <div className="pt-3 border-t border-gray-700">
-                  <p className="text-xs text-gray-500">
-                    Last updated: {format(new Date(systemStatus.timestamp), 'HH:mm:ss')}
-                  </p>
-                </div>
-              )}
+            {/* Simple status message */}
+            <div className="text-center py-4">
+              <p className={`text-lg font-semibold ${systemStatus.status === 'healthy' ? 'text-green-400' :
+                systemStatus.status === 'degraded' ? 'text-yellow-400' :
+                  'text-red-400'
+                }`}>
+                {systemStatus.status === 'healthy' ? '✓ All Systems Operational' :
+                  systemStatus.status === 'degraded' ? '⚠ Some Services Degraded' :
+                    '✗ System Issues Detected'}
+              </p>
+              <p className="text-sm text-gray-400 mt-2">
+                {systemStatus.status === 'healthy' ? 'Everything is running smoothly' :
+                  'Please contact support if issues persist'}
+              </p>
             </div>
           </div>
-        </motion.div>
-      </div>
-    </div>
+        </motion.div >
+      </div >
+    </div >
   );
 };
 

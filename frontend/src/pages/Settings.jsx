@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Bell, Lock, User, Palette } from 'lucide-react';
+import { Bell, Lock, User, Palette, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import DeleteAccountModal from '../components/Settings/DeleteAccountModal';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
@@ -10,6 +11,8 @@ const Settings = () => {
     darkMode: true,
     dataCollection: true
   });
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const handleToggle = (key) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
@@ -72,14 +75,12 @@ const Settings = () => {
                 </div>
                 <button
                   onClick={() => handleToggle(item.key)}
-                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                    settings[item.key] ? 'bg-blue-600' : 'bg-gray-600'
-                  }`}
+                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${settings[item.key] ? 'bg-blue-600' : 'bg-gray-600'
+                    }`}
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                      settings[item.key] ? 'translate-x-7' : 'translate-x-1'
-                    }`}
+                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings[item.key] ? 'translate-x-7' : 'translate-x-1'
+                      }`}
                   />
                 </button>
               </div>
@@ -122,14 +123,12 @@ const Settings = () => {
               </div>
               <button
                 onClick={() => handleToggle('dataCollection')}
-                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                  settings.dataCollection ? 'bg-blue-600' : 'bg-gray-600'
-                }`}
+                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${settings.dataCollection ? 'bg-blue-600' : 'bg-gray-600'
+                  }`}
               >
                 <span
-                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                    settings.dataCollection ? 'translate-x-7' : 'translate-x-1'
-                  }`}
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings.dataCollection ? 'translate-x-7' : 'translate-x-1'
+                    }`}
                 />
               </button>
             </div>
@@ -143,6 +142,36 @@ const Settings = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Danger Zone */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+        <div className="bg-red-900/20 backdrop-blur-sm rounded-xl border border-red-700/50 p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <Trash2 className="w-6 h-6 text-red-400" />
+            <h2 className="text-xl font-bold text-white">Danger Zone</h2>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-red-950/50 rounded-lg border border-red-800/30">
+              <div>
+                <p className="font-medium text-white">Delete Account</p>
+                <p className="text-sm text-gray-400">Permanently delete your account and all associated data</p>
+              </div>
+              <button 
+                onClick={() => setIsDeleteModalOpen(true)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium"
+              >
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Delete Account Modal */}
+      <DeleteAccountModal 
+        isOpen={isDeleteModalOpen} 
+        onClose={() => setIsDeleteModalOpen(false)} 
+      />
     </div>
   );
 };

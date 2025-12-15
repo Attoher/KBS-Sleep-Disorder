@@ -21,5 +21,11 @@ router.get('/me', auth, authController.getCurrentUser);
 router.put('/profile', auth, authController.updateProfile);
 router.post('/change-password', auth, authController.changePassword);
 router.post('/logout', auth, authController.logout);
+router.delete(
+  '/account',
+  auth,
+  authController.validateDeleteAccount(),
+  authController.deleteAccount
+);
 
 module.exports = router;

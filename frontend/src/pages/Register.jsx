@@ -18,23 +18,24 @@ const Register = () => {
     gender: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       alert('Passwords do not match');
       return;
     }
-    
+
     if (formData.password.length < 6) {
       alert('Password must be at least 6 characters');
       return;
     }
-    
+
     setLoading(true);
-    
+
     const result = await register({
       name: formData.name,
       email: formData.email,
@@ -42,11 +43,11 @@ const Register = () => {
       age: formData.age ? parseInt(formData.age) : undefined,
       gender: formData.gender || undefined,
     });
-    
+
     if (result.success) {
       navigate('/dashboard');
     }
-    
+
     setLoading(false);
   };
 
@@ -61,8 +62,8 @@ const Register = () => {
       {/* Header buttons */}
       <div className="absolute top-6 left-6">
         <Link to="/welcome">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="small"
             className="flex items-center gap-2 hover:gap-3 transition-all"
           >
@@ -71,7 +72,7 @@ const Register = () => {
           </Button>
         </Link>
       </div>
-      
+
       <div className="absolute top-6 right-6">
         <ThemeToggle />
       </div>
@@ -97,16 +98,14 @@ const Register = () => {
               <label className="block text-sm font-medium text-secondary">
                 Full Name
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-secondary/70" />
-                </div>
+              <div className="flex items-center gap-3 bg-gray-700/30 rounded-xl px-4 py-3.5 border border-app focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                <User className="h-5 w-5 text-secondary/70 flex-shrink-0" />
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3.5 input-surface rounded-xl border border-app focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400"
                   placeholder="John Doe"
                 />
               </div>
@@ -117,16 +116,14 @@ const Register = () => {
               <label className="block text-sm font-medium text-secondary">
                 Email Address
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-secondary/70" />
-                </div>
+              <div className="flex items-center gap-3 bg-gray-700/30 rounded-xl px-4 py-3.5 border border-app focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                <Mail className="h-5 w-5 text-secondary/70 flex-shrink-0" />
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3.5 input-surface rounded-xl border border-app focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400"
                   placeholder="you@example.com"
                 />
               </div>
@@ -148,7 +145,7 @@ const Register = () => {
                   placeholder="25"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-secondary">
                   Gender
@@ -171,23 +168,21 @@ const Register = () => {
               <label className="block text-sm font-medium text-secondary">
                 Password
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-secondary/70" />
-                </div>
+              <div className="flex items-center gap-3 bg-gray-700/30 rounded-xl px-4 py-3.5 border border-app focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                <Lock className="h-5 w-5 text-secondary/70 flex-shrink-0" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-10 pr-12 py-3.5 input-surface rounded-xl border border-app focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400"
                   placeholder="••••••••"
                   minLength="6"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center hover:bg-surface/30 rounded-r-xl transition-colors"
+                  className="flex-shrink-0 hover:bg-surface/30 rounded-lg p-1 transition-colors"
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5 text-secondary/70 hover:text-secondary" />
@@ -206,14 +201,28 @@ const Register = () => {
               <label className="block text-sm font-medium text-secondary">
                 Confirm Password
               </label>
-              <input
-                type="password"
-                required
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="w-full px-4 py-3.5 input-surface rounded-xl border border-app focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                placeholder="••••••••"
-              />
+              <div className="flex items-center gap-3 bg-gray-700/30 rounded-xl px-4 py-3.5 border border-app focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                <Lock className="h-5 w-5 text-secondary/70 flex-shrink-0" />
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="flex-shrink-0 hover:bg-surface/30 rounded-lg p-1 transition-colors"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-5 w-5 text-secondary/70 hover:text-secondary" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-secondary/70 hover:text-secondary" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Terms */}
@@ -248,8 +257,8 @@ const Register = () => {
             <div className="text-center pt-4">
               <p className="text-secondary">
                 Already have an account?{' '}
-                <Link 
-                  to="/login" 
+                <Link
+                  to="/login"
                   className="text-primary hover:underline font-medium inline-flex items-center gap-1 group"
                 >
                   Sign in
@@ -270,10 +279,10 @@ const Register = () => {
         {/* Footer */}
         <div className="mt-8 text-center space-y-3">
           <p className="text-sm text-secondary/70">
-            © {new Date().getFullYear()} Sleep Health KBS. All rights reserved.
+            © {new Date().getFullYear()} Kumeowturu. All rights reserved.
           </p>
-          <Link 
-            to="/showcase" 
+          <Link
+            to="/showcase"
             className="inline-flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 hover:underline transition-colors group"
           >
             🎨 View UI Showcase

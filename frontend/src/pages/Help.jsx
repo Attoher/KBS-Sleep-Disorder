@@ -44,7 +44,7 @@ const Help = () => {
     { icon: BookOpen, title: 'Documentation', desc: 'Learn how to use all features', link: '#' },
     { icon: Zap, title: 'Quick Tips', desc: 'Get started in 2 minutes', link: '#' },
     { icon: AlertCircle, title: 'Troubleshooting', desc: 'Fix common issues', link: '#' },
-    { icon: MessageCircle, title: 'Contact Support', desc: 'Reach our team', link: 'mailto:support@kbs-sleep.com' }
+    { icon: MessageCircle, title: 'Contact Support', desc: 'Reach our team', link: 'mailto:ryanmarvsirait@gmail.com' }
   ];
 
   return (
@@ -98,9 +98,8 @@ const Help = () => {
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-white group-hover:text-blue-300 transition-colors">{item.q}</p>
                   <ChevronDown
-                    className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
-                      expandedFaq === idx ? 'rotate-180' : ''
-                    }`}
+                    className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${expandedFaq === idx ? 'rotate-180' : ''
+                      }`}
                   />
                 </div>
                 {expandedFaq === idx && (
@@ -129,16 +128,18 @@ const Help = () => {
               <p className="text-gray-300 mb-4">Our support team is here to assist you. We typically respond within 24 hours.</p>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href="mailto:support@kbs-sleep.com"
+                  href="mailto:ryanmarvsirait@gmail.com"
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm"
                 >
                   Email Support
                 </a>
                 <a
-                  href="#"
+                  href="https://forms.gle/YZ1c4WSzC9eGMahW8"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium text-sm"
                 >
-                  Contact Form
+                  Support Form
                 </a>
               </div>
             </div>

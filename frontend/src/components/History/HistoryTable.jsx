@@ -12,14 +12,16 @@ import { format, isValid } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import Button from '../Common/Button';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const HistoryTable = ({ screenings, onRefresh, onDownloadReport }) => {
   const [loading, setLoading] = useState(false);
+  const { theme } = useTheme();
 
   // Helper function to safely format dates
   const formatDate = (dateValue, formatString) => {
     if (!dateValue) return 'N/A';
-    
+
     try {
       const date = new Date(dateValue);
       if (!isValid(date)) return 'N/A';
@@ -41,7 +43,7 @@ const HistoryTable = ({ screenings, onRefresh, onDownloadReport }) => {
         const response = await api.get(`/screening/export?id=${screening.screeningId}`, {
           responseType: 'blob'
         });
-        
+
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
@@ -49,7 +51,7 @@ const HistoryTable = ({ screenings, onRefresh, onDownloadReport }) => {
         document.body.appendChild(link);
         link.click();
         link.remove();
-        
+
         toast.success('Report downloaded successfully');
       }
     } catch (error) {
@@ -62,7 +64,7 @@ const HistoryTable = ({ screenings, onRefresh, onDownloadReport }) => {
     if (!window.confirm('Are you sure you want to delete this screening?')) {
       return;
     }
-    
+
     try {
       setLoading(true);
       await api.delete(`/screening/${screeningId}`);
@@ -127,31 +129,38 @@ const HistoryTable = ({ screenings, onRefresh, onDownloadReport }) => {
         </thead>
         <tbody className="divide-y divide-gray-700/50 bg-gray-900/30">
           {screenings.map((screening) => (
-            <tr key={screening.screeningId || screening.id} className="hover:bg-gray-800/50 transition-colors">
+            <tr
+              key={screening.screeningId || screening.id}
+              className={`transition-colors ${theme === 'light'
+                  ? 'hover:bg-purple-100/50'
+                  : 'hover:bg-purple-500/10'
+                }`}
+              style={theme === 'light' ? { backgroundColor: '#F5F2FA' } : {}}
+            >
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <Calendar className="w-4 h-4" style={{ color: theme === 'light' ? '#7C3AED' : '#9CA3AF' }} />
                   <div>
-                    <div className="text-sm text-white">
+                    <div className={`text-sm ${theme === 'light' ? 'font-semibold' : ''}`} style={{ color: theme === 'light' ? '#5B21B6' : '#FFFFFF' }}>
                       {formatDate(screening.timestamp || screening.createdAt || screening.readableTimestamp, 'MMM d, yyyy')}
                     </div>
-                    <div className="text-xs text-gray-400 flex items-center">
+                    <div className="text-xs flex items-center" style={{ color: theme === 'light' ? '#7C3AED' : '#9CA3AF' }}>
                       <Clock className="w-3 h-3 mr-1" />
                       {formatDate(screening.timestamp || screening.createdAt || screening.readableTimestamp, 'h:mm a')}
                     </div>
                   </div>
                 </div>
               </td>
-              
+
               <td className="px-6 py-4">
                 <div className="flex items-center space-x-2">
                   {getDiagnosisIcon(screening.diagnosis)}
-                  <span className="text-sm font-medium text-white">
+                  <span className="text-sm font-medium" style={{ color: theme === 'light' ? '#5B21B6' : '#FFFFFF' }}>
                     {screening.diagnosis}
                   </span>
                 </div>
               </td>
-              
+
               <td className="px-6 py-4">
                 <div className="flex space-x-2">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getRiskColor(screening.insomniaRisk)}`}>
@@ -162,7 +171,7 @@ const HistoryTable = ({ screenings, onRefresh, onDownloadReport }) => {
                   </span>
                 </div>
               </td>
-              
+
               <td className="px-6 py-4">
                 <div className="flex flex-wrap gap-1">
                   {screening.recommendations?.slice(0, 2).map((rec, index) => (
@@ -180,7 +189,7 @@ const HistoryTable = ({ screenings, onRefresh, onDownloadReport }) => {
                   )}
                 </div>
               </td>
-              
+
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div className="flex items-center space-x-2">
                   <Button
@@ -190,7 +199,7 @@ const HistoryTable = ({ screenings, onRefresh, onDownloadReport }) => {
                   >
                     <Eye className="w-4 h-4" />
                   </Button>
-                  
+
                   <Button
                     variant="outline"
                     size="small"
@@ -199,7 +208,7 @@ const HistoryTable = ({ screenings, onRefresh, onDownloadReport }) => {
                   >
                     <Download className="w-4 h-4" />
                   </Button>
-                  
+
                   <Button
                     variant="danger"
                     size="small"

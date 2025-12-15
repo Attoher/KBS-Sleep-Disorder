@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Calendar, 
-  Filter, 
-  Download, 
+import {
+  Calendar,
+  Filter,
+  Download,
   RefreshCw,
   Search,
   BarChart3
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import api from '../utils/api';
+import { exportAsTXT } from '../utils/exportUtils';
 import HistoryTable from '../components/History/HistoryTable';
 import Loader from '../components/Common/Loader';
 import Button from '../components/Common/Button';
+import { useAuth } from '../contexts/AuthContext';
 
 const History = () => {
+  const { guestMode, getGuestScreenings } = useAuth();
   const [loading, setLoading] = useState(true);
   const [screenings, setScreenings] = useState([]);
   const [pagination, setPagination] = useState({
@@ -39,8 +42,22 @@ const History = () => {
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      
-      // Build query params
+
+      // If guest mode, load from localStorage
+      if (guestMode) {
+        const guestScreenings = getGuestScreenings();
+        setScreenings(guestScreenings);
+        setPagination({
+          page: 1,
+          limit: 10,
+          total: guestScreenings.length,
+          pages: Math.ceil(guestScreenings.length / 10)
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Build query params for authenticated users
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value);
@@ -48,16 +65,16 @@ const History = () => {
 
       const response = await api.get(`/history?${params}`);
       const data = response.data.data;
-      
+
       // Format timestamps for display
       const formattedScreenings = (data.screenings || []).map(screening => ({
         ...screening,
         // Ensure timestamp is formatted
         timestamp: screening.timestamp || 'N/A'
       }));
-      
+
       setScreenings(formattedScreenings);
-      
+
       if (data.pagination) {
         // Backend sends 'totalPages' but we use 'pages' in frontend
         const normalizedPagination = {
@@ -68,31 +85,37 @@ const History = () => {
       }
     } catch (error) {
       console.error('Failed to fetch history:', error);
-      // Fallback data
-      setScreenings([
-        {
-          screeningId: 'DEMO_001',
-          timestamp: new Date().toLocaleString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          }),
-          diagnosis: 'Mixed Sleep Disorder (Insomnia + Sleep Apnea)',
-          insomniaRisk: 'high',
-          apneaRisk: 'moderate',
-          recommendations: ['Maintain consistent sleep schedule'],
-          firedRulesCount: 5
-        }
-      ]);
-      setPagination({
-        page: 1,
-        limit: 10,
-        total: 1,
-        pages: 1
-      });
+      // Fallback to empty for guest mode
+      if (guestMode) {
+        setScreenings([]);
+        setPagination({ page: 1, limit: 10, total: 0, pages: 0 });
+      } else {
+        // Fallback data for authenticated users
+        setScreenings([
+          {
+            screeningId: 'DEMO_001',
+            timestamp: new Date().toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            diagnosis: 'Mixed Sleep Disorder (Insomnia + Sleep Apnea)',
+            insomniaRisk: 'high',
+            apneaRisk: 'moderate',
+            recommendations: ['Maintain consistent sleep schedule'],
+            firedRulesCount: 5
+          }
+        ]);
+        setPagination({
+          page: 1,
+          limit: 10,
+          total: 1,
+          pages: 1
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -111,12 +134,12 @@ const History = () => {
         (s.recommendations || []).join('; '),
         s.firedRulesCount || (s.firedRules || []).length || 0
       ]);
-      
+
       const csvContent = [
         csvHeaders.join(','),
         ...csvRows.map(row => row.map(cell => `"${cell}"`).join(','))
       ].join('\n');
-      
+
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -134,45 +157,32 @@ const History = () => {
 
   const handleDownloadReport = async (screening) => {
     try {
-      // Generate PDF report for a single screening
-      const reportContent = `
-Sleep Health Screening Report
-========================================
+      // Format screening data to match Results page format
+      const formattedResults = {
+        screeningId: screening.screeningId,
+        diagnosis: screening.diagnosis || 'No Sleep Disorder Detected',
+        insomniaRisk: screening.insomniaRisk || 'unknown',
+        apneaRisk: screening.apneaRisk || 'unknown',
+        recommendations: screening.recommendations || [],
+        firedRules: screening.firedRules || [],
+        inputData: screening.inputData || {
+          sleepQualityScore: screening.sleepQuality,
+          bmiCategory: screening.bmiCategory,
+          sleepDuration: screening.sleepDuration,
+          stressLevel: screening.stressLevel
+        }
+      };
 
-Date: ${format(new Date(screening.timestamp || screening.createdAt), 'MMMM d, yyyy h:mm a')}
-Screening ID: ${screening.screeningId || 'N/A'}
+      const timestamp = screening.timestamp || screening.createdAt || new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
 
-DIAGNOSIS
-========================================
-${screening.diagnosis}
-
-RISK ASSESSMENT
-========================================
-Insomnia Risk: ${(screening.insomniaRisk || 'N/A').toUpperCase()}
-Sleep Apnea Risk: ${(screening.apneaRisk || 'N/A').toUpperCase()}
-
-RECOMMENDATIONS
-========================================
-${(screening.recommendations || []).map((rec, i) => `${i + 1}. ${rec.replace('REC_', '').replace(/_/g, ' ')}`).join('\n')}
-
-RULE ENGINE ANALYSIS
-========================================
-Total Rules Fired: ${screening.firedRulesCount || (screening.firedRules || []).length || 0}
-Fired Rules: ${(screening.firedRules || []).join(', ') || 'N/A'}
-
-========================================
-Generated by RSBP Sleep Health KBS
-      `;
-      
-      const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8;' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `screening-report-${screening.screeningId || format(new Date(), 'yyyyMMddHHmmss')}.txt`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Use TXT export for History page
+      exportAsTXT(formattedResults, timestamp);
     } catch (error) {
       console.error('Download report failed:', error);
       alert('Failed to download report. Please try again.');
@@ -180,11 +190,11 @@ Generated by RSBP Sleep Health KBS
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ 
-      ...prev, 
-      [key]: value, 
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
       // Only reset page to 1 if changing filters, not when changing page itself
-      page: key === 'page' ? value : 1 
+      page: key === 'page' ? value : 1
     }));
   };
 
@@ -342,8 +352,8 @@ Generated by RSBP Sleep Health KBS
         {loading ? (
           <Loader />
         ) : (
-          <HistoryTable 
-            screenings={screenings} 
+          <HistoryTable
+            screenings={screenings}
             onRefresh={fetchHistory}
             onDownloadReport={handleDownloadReport}
           />
@@ -382,11 +392,10 @@ Generated by RSBP Sleep Health KBS
                     <button
                       key={pageNum}
                       onClick={() => handleFilterChange('page', pageNum)}
-                      className={`w-8 h-8 rounded transition-colors ${
-                        pagination.page === pageNum
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                      }`}
+                      className={`w-8 h-8 rounded transition-colors ${pagination.page === pageNum
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                        }`}
                     >
                       {pageNum}
                     </button>

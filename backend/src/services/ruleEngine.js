@@ -186,9 +186,9 @@ class RuleEngine {
           const insomniaRisk = facts.insomnia_risk;
           const stressIssue = facts.lifestyle_issue_stress;
           const sleepIssue = facts.lifestyle_issue_sleep;
-          
-          return insomniaRisk === 'high' || 
-                 (insomniaRisk === 'moderate' && (stressIssue || sleepIssue));
+
+          return insomniaRisk === 'high' ||
+            (insomniaRisk === 'moderate' && (stressIssue || sleepIssue));
         },
         action: (facts) => {
           facts.diagnosis_insomnia = true;
@@ -202,9 +202,9 @@ class RuleEngine {
         condition: (facts) => {
           const apneaRisk = facts.apnea_risk;
           const weightIssue = facts.lifestyle_issue_weight;
-          
-          return apneaRisk === 'high' || 
-                 (apneaRisk === 'moderate' && weightIssue);
+
+          return apneaRisk === 'high' ||
+            (apneaRisk === 'moderate' && weightIssue);
         },
         action: (facts) => {
           facts.diagnosis_apnea = true;
@@ -236,10 +236,10 @@ class RuleEngine {
           const stressIssue = facts.lifestyle_issue_stress;
           const sleepIssue = facts.lifestyle_issue_sleep;
           const weightIssue = facts.lifestyle_issue_weight;
-          
+
           const allRisksLow = insomniaRisk === 'low' && apneaRisk === 'low';
           const noLifestyleIssues = !activityIssue && !stressIssue && !sleepIssue && !weightIssue;
-          
+
           return allRisksLow && noLifestyleIssues;
         },
         action: (facts) => {
@@ -323,18 +323,54 @@ class RuleEngine {
   // Preprocess input data
   preprocessInput(rawInput) {
     console.log('[SETUP] Preprocessing input data...');
-    
+
     const facts = { ...rawInput };
-    
+
     // Ensure numeric values
     facts.age = parseInt(facts.Age || facts.age || 0);
     facts.sleepDuration = parseFloat(facts['Sleep Duration'] || facts.sleepDuration || 0);
-    facts.sleepQuality = parseInt(facts['Quality of Sleep'] || facts.sleepQuality || facts.sleepQualityScore || 0);
+
+    // Handle sleep quality - can come from questionnaire score or direct input
+    facts.sleepQuality = parseInt(
+      facts.sleepQualityScore ||
+      facts['Quality of Sleep'] ||
+      facts.sleepQuality ||
+      0
+    );
+
     facts.stressLevel = parseInt(facts['Stress Level'] || facts.stressLevel || 0);
-    facts.physicalActivity = parseInt(facts['Physical Activity Level'] || facts.physicalActivity || 0);
+
+    // Handle physical activity - can be numeric or from dropdown
+    facts.physicalActivity = parseInt(
+      facts.physicalActivity ||
+      facts['Physical Activity Level'] ||
+      0
+    );
+
     facts.heartRate = parseInt(facts['Heart Rate'] || facts.heartRate || 0);
     facts.dailySteps = parseInt(facts['Daily Steps'] || facts.dailySteps || 0);
-    
+
+    // Handle BMI - can come from category or calculate from weight/height
+    if (!facts.bmiCategory && facts.weight && facts.height) {
+      // Calculate BMI from weight and height
+      const weightKg = facts.weightUnit === 'lbs' ? facts.weight * 0.453592 : facts.weight;
+      const heightM = facts.heightUnit === 'in' ? facts.height * 0.0254 : facts.height / 100;
+
+      if (weightKg > 0 && heightM > 0) {
+        const bmi = weightKg / (heightM ** 2);
+
+        if (bmi < 18.5) facts.bmiCategory = 'Underweight';
+        else if (bmi < 25) facts.bmiCategory = 'Normal';
+        else if (bmi < 30) facts.bmiCategory = 'Overweight';
+        else facts.bmiCategory = 'Obese';
+
+        facts.bmi = bmi; // Store calculated BMI
+      }
+    } else {
+      // Use provided BMI category
+      facts.bmiCategory = facts['BMI Category'] || facts.bmiCategory || 'Normal';
+    }
+
     // Parse blood pressure
     if (facts.bloodPressure || facts['Blood Pressure']) {
       const bp = facts.bloodPressure || facts['Blood Pressure'];
@@ -342,7 +378,7 @@ class RuleEngine {
         const [systolic, diastolic] = bp.split('/').map(Number);
         facts.systolicBP = systolic;
         facts.diastolicBP = diastolic;
-        
+
         // Determine hypertension status
         if (systolic >= 140 || diastolic >= 90) {
           facts.bloodPressureStatus = 'Hypertension';
@@ -353,53 +389,51 @@ class RuleEngine {
         facts.bloodPressureStatus = 'Unknown';
       }
     }
-    
-    // Set BMI category
-    facts.bmiCategory = facts['BMI Category'] || facts.bmiCategory || 'Normal';
-    
+
     // Initialize arrays for results
     if (!facts.firedRules) facts.firedRules = [];
     if (!facts.recommendations) facts.recommendations = [];
-    
+
     // Initialize lifestyle issues as false by default
     facts.lifestyle_issue_activity = false;
     facts.lifestyle_issue_stress = false;
     facts.lifestyle_issue_sleep = false;
     facts.lifestyle_issue_weight = false;
-    
+
     console.log('[SUCCESS] Preprocessing complete:', {
       sleepDuration: facts.sleepDuration,
       sleepQuality: facts.sleepQuality,
       stressLevel: facts.stressLevel,
       bmiCategory: facts.bmiCategory,
-      bloodPressureStatus: facts.bloodPressureStatus
+      bloodPressureStatus: facts.bloodPressureStatus,
+      physicalActivity: facts.physicalActivity
     });
-    
+
     return facts;
   }
 
   // Run forward chaining inference
   runForwardChaining(input) {
     console.log('🧠 Starting rule engine inference...');
-    
+
     const facts = this.preprocessInput(input);
     let changed = true;
     let iteration = 0;
     const maxIterations = 50;
-    
+
     // Execute rules until no more changes or max iterations reached
     while (changed && iteration < maxIterations) {
       changed = false;
       iteration++;
-      
+
       console.log(`\n🔄 Iteration ${iteration}:`);
-      
+
       for (const rule of this.rules) {
         // Skip if rule already fired
         if (facts.firedRules.includes(rule.id)) {
           continue;
         }
-        
+
         // Check condition
         try {
           if (rule.condition(facts)) {
@@ -413,14 +447,14 @@ class RuleEngine {
         }
       }
     }
-    
+
     if (iteration >= maxIterations) {
       console.warn('[WARNING] Maximum iterations reached');
     }
-    
+
     // Determine final diagnosis
     facts.diagnosis = this.determineDiagnosis(facts);
-    
+
     // Prepare lifestyle issues object
     facts.lifestyleIssues = {
       sleep: facts.lifestyle_issue_sleep || false,
@@ -428,12 +462,12 @@ class RuleEngine {
       activity: facts.lifestyle_issue_activity || false,
       weight: facts.lifestyle_issue_weight || false
     };
-    
+
     console.log('\n🎉 Inference completed:');
     console.log('   Diagnosis:', facts.diagnosis);
     console.log('   Fired rules:', facts.firedRules.length);
     console.log('   Recommendations:', facts.recommendations);
-    
+
     return facts;
   }
 
@@ -495,31 +529,31 @@ class RuleEngine {
   // Validate input data
   validateInput(input) {
     const errors = [];
-    
+
     if (!input.age && !input.Age) {
       errors.push('Age is required');
     }
-    
+
     if (!input.sleepDuration && !input['Sleep Duration']) {
       errors.push('Sleep duration is required');
     }
-    
+
     if (!input.sleepQuality && !input['Quality of Sleep'] && !input.sleepQualityScore) {
       errors.push('Sleep quality is required');
     }
-    
+
     if (!input.stressLevel && !input['Stress Level']) {
       errors.push('Stress level is required');
     }
-    
+
     if (!input.bmiCategory && !input['BMI Category']) {
       errors.push('BMI category is required');
     }
-    
+
     if (!input.bloodPressure && !input['Blood Pressure']) {
       errors.push('Blood pressure is required');
     }
-    
+
     return errors;
   }
 }

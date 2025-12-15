@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { 
-  Eye, 
-  LayoutDashboard, 
-  ClipboardList, 
-  BarChart3, 
-  History, 
+import {
+  Eye,
+  LayoutDashboard,
+  ClipboardList,
+  BarChart3,
+  History,
   FileText,
   LogIn,
   UserPlus,
@@ -172,7 +172,7 @@ const UIShowcase = () => {
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         <h3 className="text-lg font-bold text-primary mb-2 flex items-center justify-between">
                           {page.name}
@@ -181,7 +181,7 @@ const UIShowcase = () => {
                         <p className="text-sm text-secondary leading-relaxed">
                           {page.description}
                         </p>
-                        
+
                         <div className="mt-4 flex items-center justify-between">
                           <code className="text-xs px-2 py-1 surface-secondary rounded text-secondary font-mono">
                             {page.path}
@@ -216,7 +216,7 @@ const UIShowcase = () => {
                 <div className="flex-1">
                   <h3 className="font-bold text-primary mb-2">About This System</h3>
                   <p className="text-sm text-secondary mb-4">
-                    RSBP Sleep Health KBS is a full-stack knowledge-based system for sleep disorder screening 
+                    Kumeowturu is a full-stack knowledge-based system for sleep disorder screening
                     with dual-database architecture (PostgreSQL + Neo4j) and 40+ inference rules.
                   </p>
                   <div className="flex flex-wrap gap-2">

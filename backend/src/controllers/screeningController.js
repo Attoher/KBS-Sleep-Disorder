@@ -14,18 +14,21 @@ class ScreeningController {
       const userId = req.user?.id;
       const isGuest = !userId;
       const logToNeo4j = inputData.log_to_neo4j !== false;
-      
+
       console.log('[SCREENING] Processing screening request...');
       console.log('   User ID:', userId || 'Guest');
-      
-      // Run rule engine inference
+      console.log('   Input Data Keys:', Object.keys(inputData));
+
+      // Run rule engine inference for all users (guest and authenticated)
       let results;
-      if (isGuest) {
-        results = this.generateDummyResults(inputData);
-      } else {
+      try {
         results = ruleEngine.runForwardChaining(inputData);
+        console.log('[SUCCESS] Rule engine completed');
+      } catch (ruleError) {
+        console.error('[ERROR] Rule engine failed:', ruleError);
+        throw new Error(`Rule engine error: ${ruleError.message}`);
       }
-      
+
       // Prepare response
       const response = {
         diagnosis: results.diagnosis,
@@ -41,9 +44,9 @@ class ScreeningController {
         firedRules: results.firedRules || [],
         inputData: inputData
       };
-      
+
       let screeningId = null;
-      
+
       // Save to Neo4j if user is authenticated
       if (userId && logToNeo4j && !DEMO_MODE) {
         try {
@@ -54,7 +57,9 @@ class ScreeningController {
           console.error('[WARNING] Neo4j save failed:', neo4jError.message);
         }
       }
-      
+
+      console.log('[SUCCESS] Screening completed successfully');
+
       res.json({
         success: true,
         message: 'Screening completed successfully',
@@ -66,17 +71,18 @@ class ScreeningController {
           isGuest
         }
       });
-      
+
     } catch (error) {
       console.error('[ERROR] Screening processing error:', error);
+      console.error('[ERROR] Stack trace:', error.stack);
       res.status(500).json({
         success: false,
         error: 'Failed to process screening. Please try again.',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        details: error.message
       });
     }
   }
-  
+
   // Get screening history - DIPERBARUI untuk filter bekerja
   async getUserHistory(req, res) {
     try {
@@ -114,35 +120,35 @@ class ScreeningController {
       }
 
       const userId = req.user.id;
-      const { 
-        page = 1, 
-        limit = 10, 
+      const {
+        page = 1,
+        limit = 10,
         diagnosis,
         search,
         startDate,
         endDate
       } = req.query;
-      
+
       // Build filters
       const filters = {};
       if (diagnosis) filters.diagnosis = diagnosis;
       if (search) filters.search = search;
       if (startDate) filters.startDate = startDate;
       if (endDate) filters.endDate = endDate;
-      
+
       // Get screenings with filters
       const result = await neo4jScreeningService.getUserScreenings(
-        userId, 
-        parseInt(page), 
+        userId,
+        parseInt(page),
         parseInt(limit),
         filters
       );
-      
+
       console.log('[CONTROLLER] Controller received pagination:', result.pagination);
-      
+
       // Get statistics
       const stats = await neo4jScreeningService.getUserScreeningStats(userId);
-      
+
       const responseData = {
         success: true,
         data: {
@@ -151,11 +157,11 @@ class ScreeningController {
           statistics: stats
         }
       };
-      
+
       console.log('[RESPONSE] Sending response pagination:', responseData.data.pagination);
-      
+
       res.json(responseData);
-      
+
     } catch (error) {
       console.error('Get history error:', error);
       res.status(500).json({
@@ -164,12 +170,12 @@ class ScreeningController {
       });
     }
   }
-  
+
   // Get single screening by ID - DIPERBARUI
   async getScreeningById(req, res) {
     try {
       const { id } = req.params;
-      
+
       // If demo mode, return dummy data
       if (DEMO_MODE) {
         return res.json({
@@ -212,19 +218,19 @@ class ScreeningController {
       }
 
       const screening = await neo4jScreeningService.getScreeningById(id);
-      
+
       if (!screening) {
         return res.status(404).json({
           success: false,
           error: 'Screening not found'
         });
       }
-      
+
       res.json({
         success: true,
         data: screening
       });
-      
+
     } catch (error) {
       console.error('Get screening error:', error);
       res.status(500).json({
@@ -238,15 +244,23 @@ class ScreeningController {
   async deleteScreening(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.id;
-      
+      const userId = req.user?.id;
+
+      // Guest users don't have persisted data, so just return success
+      if (!userId) {
+        return res.json({
+          success: true,
+          message: 'Screening removed (guest mode - data not persisted)'
+        });
+      }
+
       await neo4jScreeningService.deleteScreening(id, userId);
-      
+
       res.json({
         success: true,
         message: 'Screening deleted successfully'
       });
-      
+
     } catch (error) {
       console.error('Delete screening error:', error);
       res.status(500).json({
@@ -256,16 +270,86 @@ class ScreeningController {
     }
   }
 
+  // Delete multiple screenings (bulk delete)
+  async deleteMultipleScreenings(req, res) {
+    try {
+      const { screeningIds } = req.body;
+      const userId = req.user?.id;
+
+      if (!screeningIds || !Array.isArray(screeningIds) || screeningIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid screening IDs provided'
+        });
+      }
+
+      // Guest users don't have persisted data
+      if (!userId) {
+        return res.json({
+          success: true,
+          message: `${screeningIds.length} screening(s) removed (guest mode - data not persisted)`,
+          deletedCount: screeningIds.length
+        });
+      }
+
+      await neo4jScreeningService.deleteMultipleScreenings(screeningIds, userId);
+
+      res.json({
+        success: true,
+        message: `${screeningIds.length} screening(s) deleted successfully`,
+        deletedCount: screeningIds.length
+      });
+
+    } catch (error) {
+      console.error('Delete multiple screenings error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to delete screenings'
+      });
+    }
+  }
+
+  // Delete all user screenings (clear history)
+  async deleteAllScreenings(req, res) {
+    try {
+      const userId = req.user?.id;
+
+      // Guest users don't have persisted data
+      if (!userId) {
+        return res.json({
+          success: true,
+          message: 'All screening history cleared (guest mode - data not persisted)',
+          deletedCount: 0
+        });
+      }
+
+      const result = await neo4jScreeningService.deleteAllUserScreenings(userId);
+
+      res.json({
+        success: true,
+        message: 'All screening history cleared successfully',
+        deletedCount: result.deletedCount
+      });
+
+    } catch (error) {
+      console.error('Delete all screenings error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to clear screening history'
+      });
+    }
+  }
+
   // Export screening history
   async exportHistory(req, res) {
     try {
       const userId = req.user.id;
       const { format = 'csv' } = req.query;
-      
+
       // Get all user screenings
       const result = await neo4jScreeningService.getUserScreenings(userId, 1, 1000);
       const screenings = result.screenings;
-      
+
       if (format === 'csv') {
         const headers = [
           'Date', 'Diagnosis', 'Insomnia Risk', 'Sleep Apnea Risk',
@@ -295,13 +379,13 @@ class ScreeningController {
         res.setHeader('Content-Disposition', 'attachment; filename=sleep-health-history.csv');
         return res.send(csvString);
       }
-      
+
       // Default JSON export
       res.json({
         success: true,
         data: screenings
       });
-      
+
     } catch (error) {
       console.error('Export history error:', error);
       res.status(500).json({
@@ -315,7 +399,7 @@ class ScreeningController {
   async getRuleEngineInfo(req, res) {
     try {
       const ruleDescriptions = ruleEngine.getRuleDescriptions();
-      
+
       res.json({
         success: true,
         data: {
@@ -324,7 +408,7 @@ class ScreeningController {
           engineVersion: '1.0.0'
         }
       });
-      
+
     } catch (error) {
       console.error('Get rule engine info error:', error);
       res.status(500).json({

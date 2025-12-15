@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/auth/login', { email, password });
       const { token, user } = response.data.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.removeItem('guest');
@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/auth/register', userData);
       const { token, user } = response.data.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.removeItem('guest');
@@ -110,6 +110,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('guest');
     localStorage.removeItem('user');
+    // Clear guest screening data on logout
+    localStorage.removeItem('guestScreenings');
+    localStorage.removeItem('guestScreeningCount');
     setHasToken(false);
     setUser(null);
     setGuestMode(false);
@@ -133,10 +136,47 @@ export const AuthProvider = ({ children }) => {
   const startGuestSession = () => {
     localStorage.removeItem('token');
     localStorage.setItem('guest', 'true');
+    // Clear any previous guest data when starting new session
+    localStorage.removeItem('guestScreenings');
+    localStorage.removeItem('guestScreeningCount');
     setHasToken(false);
     setUser(null);
     setGuestMode(true);
     toast.success('You are now exploring as Guest');
+  };
+
+  // Guest screening management functions
+  const getGuestScreeningCount = () => {
+    const count = localStorage.getItem('guestScreeningCount');
+    return count ? parseInt(count, 10) : 0;
+  };
+
+  const incrementGuestScreeningCount = () => {
+    const currentCount = getGuestScreeningCount();
+    const newCount = currentCount + 1;
+    localStorage.setItem('guestScreeningCount', newCount.toString());
+    return newCount;
+  };
+
+  const hasReachedGuestLimit = () => {
+    return getGuestScreeningCount() >= 5;
+  };
+
+  const getGuestScreenings = () => {
+    const screenings = localStorage.getItem('guestScreenings');
+    return screenings ? JSON.parse(screenings) : [];
+  };
+
+  const addGuestScreening = (screening) => {
+    const screenings = getGuestScreenings();
+    screenings.unshift(screening); // Add to beginning
+    localStorage.setItem('guestScreenings', JSON.stringify(screenings));
+  };
+
+  const deleteGuestScreening = (screeningId) => {
+    const screenings = getGuestScreenings();
+    const filtered = screenings.filter(s => s.screeningId !== screeningId);
+    localStorage.setItem('guestScreenings', JSON.stringify(filtered));
   };
 
   const value = {
@@ -149,6 +189,13 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     fetchUser,
     startGuestSession,
+    // Guest screening functions
+    getGuestScreeningCount,
+    incrementGuestScreeningCount,
+    hasReachedGuestLimit,
+    getGuestScreenings,
+    addGuestScreening,
+    deleteGuestScreening,
     isAuthenticated: !!user || (hasToken && !guestMode),
     hasToken
   };

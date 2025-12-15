@@ -24,18 +24,18 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     const result = await login(formData.email, formData.password);
-    
+
     if (result.success) {
       navigate('/dashboard');
     }
-    
+
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen app-bg flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen app-bg flex items-center justify-center px-4 sm:px-6 lg:px-8 py-20 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl"></div>
@@ -45,8 +45,8 @@ const Login = () => {
       {/* Header buttons */}
       <div className="absolute top-6 left-6">
         <Link to="/welcome">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="small"
             className="flex items-center gap-2 hover:gap-3 transition-all"
           >
@@ -55,7 +55,7 @@ const Login = () => {
           </Button>
         </Link>
       </div>
-      
+
       <div className="absolute top-6 right-6">
         <ThemeToggle />
       </div>
@@ -66,31 +66,30 @@ const Login = () => {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md relative z-10"
       >
+        {/* Header */}
         <div className="text-center mb-10">
-          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-accent-primary to-accent-secondary rounded-3xl flex items-center justify-center shadow-2xl shadow-accent-primary/30">
             <Moon className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-primary mb-3">Welcome Back</h1>
-          <p className="text-secondary text-base">Sign in to your Sleep Health KBS account</p>
+          <h1 className="text-3xl font-bold text-primary mb-4">Welcome Back</h1>
+          <p className="text-secondary text-base">Sign in to your Kumeowturu account</p>
         </div>
 
-        <div className="surface rounded-3xl p-8 shadow-xl border border-app">
+        <div className="surface rounded-3xl p-10 shadow-xl border border-app mt-4">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-secondary">
                 Email Address
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-secondary/70" />
-                </div>
+              <div className="flex items-center gap-3 bg-gray-700/30 rounded-xl px-4 py-3.5 border border-app focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                <Mail className="h-5 w-5 text-secondary/70 flex-shrink-0" />
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3.5 input-surface rounded-xl border border-app focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400"
                   placeholder="you@example.com"
                 />
               </div>
@@ -102,29 +101,27 @@ const Login = () => {
                 <label className="block text-sm font-medium text-secondary">
                   Password
                 </label>
-                <Link 
-                  to="/forgot-password" 
+                <Link
+                  to="/forgot-password"
                   className="text-sm text-primary hover:underline font-medium"
                 >
                   Forgot password?
                 </Link>
               </div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-secondary/70" />
-                </div>
+              <div className="flex items-center gap-3 bg-gray-700/30 rounded-xl px-4 py-3.5 border border-app focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                <Lock className="h-5 w-5 text-secondary/70 flex-shrink-0" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-10 pr-12 py-3.5 input-surface rounded-xl border border-app focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center hover:bg-surface/30 rounded-r-xl transition-colors"
+                  className="flex-shrink-0 hover:bg-surface/30 rounded-lg p-1 transition-colors"
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5 text-secondary/70 hover:text-secondary" />
@@ -174,8 +171,8 @@ const Login = () => {
             <div className="text-center pt-4">
               <p className="text-secondary">
                 Don't have an account?{' '}
-                <Link 
-                  to="/register" 
+                <Link
+                  to="/register"
                   className="text-primary hover:underline font-medium inline-flex items-center gap-1 group"
                 >
                   Create one now
@@ -199,10 +196,10 @@ const Login = () => {
         {/* Footer */}
         <div className="mt-8 text-center space-y-3">
           <p className="text-sm text-secondary/70">
-            © {new Date().getFullYear()} Sleep Health KBS. All rights reserved.
+            © {new Date().getFullYear()} Kumeowturu. All rights reserved.
           </p>
-          <Link 
-            to="/showcase" 
+          <Link
+            to="/showcase"
             className="inline-flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 hover:underline transition-colors group"
           >
             🎨 View UI Showcase

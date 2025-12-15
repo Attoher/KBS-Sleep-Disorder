@@ -40,11 +40,15 @@ const Header = () => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link to="/dashboard" className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Moon className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center overflow-hidden">
+                <img
+                  src="/sleeping_cat_icon_1765777114474.png"
+                  alt="Kumeowturu"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Sleep Health KBS
+                Kumeowturu
               </span>
             </Link>
           </div>
@@ -74,11 +78,10 @@ const Header = () => {
 
             <button
               onClick={handleBellToggle}
-              className={`p-2 rounded-lg border transition-colors relative ${
-                notificationsEnabled 
-                  ? 'surface border-app hover:border-blue-500' 
-                  : 'bg-gray-800 border-gray-700 hover:border-gray-600'
-              }`}
+              className={`p-2 rounded-lg border transition-colors relative ${notificationsEnabled
+                ? 'surface border-app hover:border-blue-500'
+                : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                }`}
               aria-label={notificationsEnabled ? 'Disable notifications' : 'Enable notifications'}
               title={notificationsEnabled ? 'Click to disable notifications' : 'Click to enable notifications'}
             >

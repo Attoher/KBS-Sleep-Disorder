@@ -27,10 +27,13 @@ import {
   BarElement,
   Title
 } from 'chart.js';
+import toast from 'react-hot-toast';
 import api from '../utils/api';
 import { RECOMMENDATION_TEXTS, RULE_DESCRIPTIONS } from '../utils/constants';
+import { exportAsJSON, exportAsPDF, shareResults } from '../utils/exportUtils';
 import Button from '../components/Common/Button';
 import Loader from '../components/Common/Loader';
+import { useTheme } from '../contexts/ThemeContext';
 
 ChartJS.register(
   ArcElement,
@@ -45,6 +48,7 @@ ChartJS.register(
 const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [timestamp, setTimestamp] = useState(null);
@@ -52,7 +56,7 @@ const Results = () => {
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const id = queryParams.get('id');
-    
+
     if (id) {
       fetchScreening(id);
     } else if (location.state?.results) {
@@ -70,22 +74,22 @@ const Results = () => {
       setLoading(true);
       const response = await api.get(`/screening/${id}`);
       const screeningData = response.data.data || response.data;
-      
+
       // Format the data for display
       // Try to extract firedRules from multiple sources
       let firedRulesArray = screeningData.firedRules || screeningData.firedRulesArray || [];
-      
+
       // Fallback: extract from facts.firedRules if available
       if ((!firedRulesArray || firedRulesArray.length === 0) && screeningData.facts) {
-        const facts = typeof screeningData.facts === 'string' 
-          ? JSON.parse(screeningData.facts) 
+        const facts = typeof screeningData.facts === 'string'
+          ? JSON.parse(screeningData.facts)
           : screeningData.facts;
-        
+
         if (facts.firedRules && Array.isArray(facts.firedRules)) {
           firedRulesArray = facts.firedRules;
         }
       }
-      
+
       const formattedResults = {
         diagnosis: screeningData.diagnosis || 'No Sleep Disorder Detected',
         insomniaRisk: screeningData.insomniaRisk || 'low',
@@ -102,7 +106,7 @@ const Results = () => {
         facts: screeningData.facts || {},
         timestamp: screeningData.timestamp || screeningData.readableTimestamp || new Date().toISOString()
       };
-      
+
       setResults(formattedResults);
       setTimestamp(screeningData.timestamp || screeningData.readableTimestamp);
     } catch (error) {
@@ -150,10 +154,40 @@ const Results = () => {
     }
   };
 
-  const handleExport = () => {
-    // Implementation for export functionality
-    console.log('Export results');
-    alert('Export feature coming soon!');
+  const handleExportJSON = () => {
+    try {
+      exportAsJSON(results, timestamp);
+      toast.success('Results exported as JSON successfully!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export results');
+    }
+  };
+
+  const handleExportPDF = () => {
+    try {
+      exportAsPDF(results, timestamp);
+      toast.success('Opening print dialog for PDF export...');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export results');
+    }
+  };
+
+  const handleShare = () => {
+    const queryParams = new URLSearchParams(location.search);
+    const id = queryParams.get('id');
+
+    if (id) {
+      const success = shareResults(id);
+      if (success) {
+        toast.success('Link copied to clipboard!');
+      } else {
+        toast.error('Failed to copy link');
+      }
+    } else {
+      toast.error('Cannot share unsaved results. Please save first.');
+    }
   };
 
   const getRiskColor = (risk) => {
@@ -208,15 +242,15 @@ const Results = () => {
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'Just now';
-    
+
     try {
       if (typeof timestamp === 'string' && timestamp.includes(',')) {
         return timestamp; // Already formatted
       }
-      
+
       const date = new Date(timestamp);
       if (isNaN(date.getTime())) return 'Just now';
-      
+
       return date.toLocaleString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -251,8 +285,8 @@ const Results = () => {
           '#3b82f6',
           '#f59e0b'
         ],
-        borderWidth: 2,
-        borderColor: '#1f2937'
+        borderWidth: 0,
+        borderColor: 'transparent'
       }
     ]
   };
@@ -263,10 +297,10 @@ const Results = () => {
       {
         label: 'Risk Level',
         data: [
-          results.insomniaRisk === 'high' ? 3 : 
-          results.insomniaRisk === 'moderate' ? 2 : 1,
-          results.apneaRisk === 'high' ? 3 : 
-          results.apneaRisk === 'moderate' ? 2 : 1
+          results.insomniaRisk === 'high' ? 3 :
+            results.insomniaRisk === 'moderate' ? 2 : 1,
+          results.apneaRisk === 'high' ? 3 :
+            results.apneaRisk === 'moderate' ? 2 : 1
         ],
         backgroundColor: ['#3b82f6', '#8b5cf6'],
         borderWidth: 0
@@ -305,11 +339,17 @@ const Results = () => {
           </div>
         </div>
         <div className="flex space-x-3">
-          <Button variant="outline" onClick={handleExport}>
+          <div className="relative group">
+            <Button variant="outline" onClick={handleExportPDF}>
+              <Download className="w-4 h-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
+          <Button variant="outline" onClick={handleExportJSON}>
             <Download className="w-4 h-4 mr-2" />
-            Export
+            Export JSON
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleShare}>
             <Share2 className="w-4 h-4 mr-2" />
             Share
           </Button>
@@ -323,15 +363,17 @@ const Results = () => {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
+            className={theme === 'light'
+              ? 'bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-8'
+              : 'bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8'
+            }
           >
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center space-x-4">
-                <div className={`p-3 rounded-xl ${
-                  results.diagnosis.includes('No Sleep Disorder') 
-                    ? 'bg-green-500/20' 
-                    : 'bg-red-500/20'
-                }`}>
+                <div className={`p-3 rounded-xl ${results.diagnosis.includes('No Sleep Disorder')
+                  ? 'bg-green-500/20'
+                  : 'bg-red-500/20'
+                  }`}>
                   {results.diagnosis.includes('No Sleep Disorder') ? (
                     <CheckCircle className="w-8 h-8 text-green-400" />
                   ) : (
@@ -339,21 +381,21 @@ const Results = () => {
                   )}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Final Diagnosis</h2>
-                  <p className="text-gray-400">Based on rule-based analysis</p>
+                  <h2 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>Final Diagnosis</h2>
+                  <p className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>Based on rule-based analysis</p>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-sm text-gray-400">Confidence</div>
+                <div className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Confidence</div>
                 <div className="text-2xl font-bold text-green-400">{calculateConfidence()}%</div>
               </div>
             </div>
 
             <div className="text-center py-6">
-              <span className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <span className="text-4xl font-bold text-purple-400">
                 {results.diagnosis}
               </span>
-              <p className="text-gray-400 mt-4">
+              <p className={`mt-4 ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
                 {results.diagnosis.includes('No Sleep Disorder')
                   ? 'Your sleep patterns appear healthy. Maintain your current lifestyle.'
                   : 'Based on your inputs, there are indicators of sleep disorders that require attention.'}
@@ -361,32 +403,30 @@ const Results = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-6 mt-8">
-              <div className="bg-gray-800/50 rounded-xl p-6">
+              <div className={theme === 'light' ? 'bg-purple-100 rounded-xl p-6' : 'bg-gray-800/50 rounded-xl p-6'}>
                 <div className="flex items-center space-x-3 mb-4">
                   <Moon className="w-6 h-6 text-blue-400" />
-                  <h3 className="font-semibold text-white">Insomnia Risk</h3>
+                  <h3 className={`font-semibold ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>Insomnia Risk</h3>
                 </div>
                 <div className={`inline-flex items-center px-4 py-2 rounded-full ${getRiskBgColor(results.insomniaRisk)}`}>
-                  <div className={`w-3 h-3 rounded-full mr-2 ${
-                    results.insomniaRisk === 'high' ? 'bg-red-500' :
+                  <div className={`w-3 h-3 rounded-full mr-2 ${results.insomniaRisk === 'high' ? 'bg-red-500' :
                     results.insomniaRisk === 'moderate' ? 'bg-yellow-500' : 'bg-green-500'
-                  }`} />
+                    }`} />
                   <span className={`font-bold ${getRiskColor(results.insomniaRisk)}`}>
                     {results.insomniaRisk?.toUpperCase() || 'UNKNOWN'}
                   </span>
                 </div>
               </div>
 
-              <div className="bg-gray-800/50 rounded-xl p-6">
+              <div className={theme === 'light' ? 'bg-pink-100 rounded-xl p-6' : 'bg-gray-800/50 rounded-xl p-6'}>
                 <div className="flex items-center space-x-3 mb-4">
                   <Activity className="w-6 h-6 text-purple-400" />
-                  <h3 className="font-semibold text-white">Apnea Risk</h3>
+                  <h3 className={`font-semibold ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>Apnea Risk</h3>
                 </div>
                 <div className={`inline-flex items-center px-4 py-2 rounded-full ${getRiskBgColor(results.apneaRisk)}`}>
-                  <div className={`w-3 h-3 rounded-full mr-2 ${
-                    results.apneaRisk === 'high' ? 'bg-red-500' :
+                  <div className={`w-3 h-3 rounded-full mr-2 ${results.apneaRisk === 'high' ? 'bg-red-500' :
                     results.apneaRisk === 'moderate' ? 'bg-yellow-500' : 'bg-green-500'
-                  }`} />
+                    }`} />
                   <span className={`font-bold ${getRiskColor(results.apneaRisk)}`}>
                     {results.apneaRisk?.toUpperCase() || 'UNKNOWN'}
                   </span>
@@ -400,9 +440,12 @@ const Results = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
+            className={theme === 'light'
+              ? 'bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-8'
+              : 'bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8'
+            }
           >
-            <h2 className="text-2xl font-bold text-white mb-6">Recommendations</h2>
+            <h2 className={`text-2xl font-bold mb-6 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>Recommendations</h2>
             <div className="space-y-4">
               {results.recommendations?.map((rec, index) => (
                 <div key={index} className="flex items-start space-x-4 p-4 bg-gray-800/50 rounded-xl">
@@ -419,7 +462,7 @@ const Results = () => {
                   </div>
                 </div>
               ))}
-              
+
               {(!results.recommendations || results.recommendations.length === 0) && (
                 <div className="text-center py-8 text-gray-400">
                   No specific recommendations for your case.
@@ -433,10 +476,13 @@ const Results = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
+            className={theme === 'light'
+              ? 'bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-8'
+              : 'bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8'
+            }
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">Triggered Medical Rules</h2>
+              <h2 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>Triggered Medical Rules</h2>
               {results.firedRules && results.firedRules.length > 0 && (
                 <span className="text-sm text-gray-400">
                   {results.firedRules.length} rules triggered
@@ -464,27 +510,113 @@ const Results = () => {
             )}
           </motion.div>
 
-          {/* Screening Input Data */}
-          {results.inputData && Object.keys(results.inputData).length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 }}
-              className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8"
-            >
-              <h2 className="text-2xl font-bold text-white mb-6">Screening Input Data</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.entries(results.inputData).map(([key, value]) => (
-                  <div key={key} className="p-4 bg-gray-800/50 rounded-lg border border-gray-700/30">
-                    <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
-                      {key.replace(/([A-Z])/g, ' $1').trim()}
-                    </p>
-                    <p className="text-white font-semibold text-lg">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
+          {/* Screening Overview - Comprehensive Metrics Display */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className={theme === 'light'
+              ? 'bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-8'
+              : 'bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-8'
+            }
+          >
+            <h2 className={`text-2xl font-bold mb-6 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>Screening Results Overview</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Age & Gender */}
+              {results.inputData?.age && (
+                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700/30">
+                  <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Age</p>
+                  <p className="text-white font-semibold text-lg">{results.inputData.age} years</p>
+                </div>
+              )}
+              {results.inputData?.gender && (
+                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700/30">
+                  <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Gender</p>
+                  <p className="text-white font-semibold text-lg">{results.inputData.gender}</p>
+                </div>
+              )}
+
+              {/* Sleep Metrics */}
+              {results.inputData?.sleepDuration !== undefined && (
+                <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/30">
+                  <p className="text-xs text-purple-400 mb-2 uppercase tracking-wide">Sleep Duration</p>
+                  <p className="text-white font-semibold text-lg">{results.inputData.sleepDuration} hours</p>
+                </div>
+              )}
+              {(results.inputData?.sleepQuality !== undefined || results.inputData?.sleepQualityScore !== undefined) && (
+                <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/30">
+                  <p className="text-xs text-purple-400 mb-2 uppercase tracking-wide">Sleep Quality Score</p>
+                  <p className="text-white font-semibold text-lg">
+                    {results.inputData.sleepQualityScore || results.inputData.sleepQuality}/10
+                  </p>
+                </div>
+              )}
+
+              {/* Stress Level - NOW VISIBLE */}
+              {results.inputData?.stressLevel !== undefined && (
+                <div className="p-4 bg-orange-500/10 rounded-lg border border-orange-500/30">
+                  <p className="text-xs text-orange-400 mb-2 uppercase tracking-wide">Stress Level</p>
+                  <p className="text-white font-semibold text-lg">{results.inputData.stressLevel}/10</p>
+                </div>
+              )}
+
+              {/* Physical Activity */}
+              {results.inputData?.physicalActivity !== undefined && (
+                <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/30">
+                  <p className="text-xs text-green-400 mb-2 uppercase tracking-wide">Physical Activity</p>
+                  <p className="text-white font-semibold text-lg">
+                    {results.inputData.physicalActivity >= 30 ? '≥30 min/day' :
+                      results.inputData.physicalActivity >= 10 ? '10-20 min/day' :
+                        'None'}
+                  </p>
+                </div>
+              )}
+              {results.inputData?.dailySteps !== undefined && (
+                <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/30">
+                  <p className="text-xs text-green-400 mb-2 uppercase tracking-wide">Daily Steps</p>
+                  <p className="text-white font-semibold text-lg">{results.inputData.dailySteps.toLocaleString()}</p>
+                </div>
+              )}
+
+              {/* Health Metrics */}
+              {results.inputData?.heartRate !== undefined && (
+                <div className="p-4 bg-red-500/10 rounded-lg border border-red-500/30">
+                  <p className="text-xs text-red-400 mb-2 uppercase tracking-wide">Heart Rate</p>
+                  <p className="text-white font-semibold text-lg">{results.inputData.heartRate} bpm</p>
+                </div>
+              )}
+              {results.inputData?.bloodPressure && (
+                <div className="p-4 bg-red-500/10 rounded-lg border border-red-500/30">
+                  <p className="text-xs text-red-400 mb-2 uppercase tracking-wide">Blood Pressure</p>
+                  <p className="text-white font-semibold text-lg">{results.inputData.bloodPressure}</p>
+                </div>
+              )}
+
+              {/* BMI Category */}
+              {results.inputData?.bmiCategory && (
+                <div className="p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
+                  <p className="text-xs text-yellow-400 mb-2 uppercase tracking-wide">BMI Category</p>
+                  <p className="text-white font-semibold text-lg">{results.inputData.bmiCategory}</p>
+                </div>
+              )}
+              {(results.inputData?.weight && results.inputData?.height) && (
+                <div className="p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
+                  <p className="text-xs text-yellow-400 mb-2 uppercase tracking-wide">Weight / Height</p>
+                  <p className="text-white font-semibold text-lg">
+                    {results.inputData.weight}{results.inputData.weightUnit || 'kg'} / {results.inputData.height}{results.inputData.heightUnit || 'cm'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Additional Info Banner */}
+            <div className="mt-6 p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
+              <p className="text-sm text-blue-300">
+                <strong>Note:</strong> Stress Level and Sleep Quality scores are calculated from your questionnaire responses.
+                These metrics are now visible in your results for comprehensive health tracking.
+              </p>
+            </div>
+          </motion.div>
         </div>
 
         {/* Right Column - Analytics */}
@@ -493,12 +625,15 @@ const Results = () => {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-6"
+            className={theme === 'light'
+              ? 'bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-6'
+              : 'bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-6'
+            }
           >
-            <h2 className="text-xl font-bold text-white mb-6">Lifestyle Issues</h2>
+            <h2 className={`text-xl font-bold mb-6 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>Lifestyle Issues</h2>
             {lifestyleData.datasets[0].data.some(val => val > 0) ? (
               <div className="h-64">
-                <Doughnut 
+                <Doughnut
                   data={lifestyleData}
                   options={{
                     responsive: true,
@@ -506,10 +641,19 @@ const Results = () => {
                     plugins: {
                       legend: {
                         position: 'bottom',
+                        align: 'center',
                         labels: {
-                          color: '#9ca3af',
-                          padding: 20
-                        }
+                          color: theme === 'light' ? '#374151' : '#9ca3af',
+                          padding: 15,
+                          boxWidth: 15,
+                          boxHeight: 15,
+                          usePointStyle: false,
+                          font: {
+                            size: 11
+                          }
+                        },
+                        display: true,
+                        fullSize: true
                       }
                     }
                   }}
@@ -525,11 +669,11 @@ const Results = () => {
             )}
             <div className="grid grid-cols-2 gap-4 mt-6">
               {Object.entries(results.lifestyleIssues || {}).map(([key, value]) => (
-                <div key={key} className="text-center p-3 bg-gray-800/50 rounded-lg">
+                <div key={key} className={`text-center p-3 rounded-lg ${theme === 'light' ? 'bg-purple-100' : 'bg-gray-800/50'}`}>
                   <div className={`text-2xl font-bold mb-2 ${value ? 'text-red-400' : 'text-green-400'}`}>
                     {value ? <AlertTriangle size={24} /> : <CheckCircle size={24} />}
                   </div>
-                  <div className="text-sm text-gray-300 capitalize">
+                  <div className={`text-sm capitalize ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
                     {key.replace('Issue', '')}
                   </div>
                 </div>
@@ -542,9 +686,12 @@ const Results = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-6"
+            className={theme === 'light'
+              ? 'bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-6'
+              : 'bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-6'
+            }
           >
-            <h2 className="text-xl font-bold text-white mb-6">Risk Comparison</h2>
+            <h2 className={`text-xl font-bold mb-6 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>Risk Comparison</h2>
             <div className="h-64">
               <Bar
                 data={riskComparisonData}
@@ -557,7 +704,7 @@ const Results = () => {
                       max: 3,
                       ticks: {
                         color: '#9ca3af',
-                        callback: function(value) {
+                        callback: function (value) {
                           return value === 3 ? 'High' : value === 2 ? 'Moderate' : 'Low';
                         }
                       }
@@ -583,9 +730,12 @@ const Results = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-6"
+            className={theme === 'light'
+              ? 'bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-6'
+              : 'bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-gray-700/50 p-6'
+            }
           >
-            <h2 className="text-xl font-bold text-white mb-6">Next Steps</h2>
+            <h2 className={`text-xl font-bold mb-6 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>Next Steps</h2>
             <ul className="space-y-4">
               <li className="flex items-start space-x-3">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
