@@ -7,6 +7,46 @@ class Neo4jScreeningService {
     this.driver = driver;
   }
 
+  // Helper function to calculate risk levels from diagnosis
+  calculateRiskLevels(results) {
+    const diagnosis = (results.diagnosis || 'unknown').toLowerCase();
+    let insomniaRisk = 'low';
+    let apneaRisk = 'low';
+
+    // Check for insomnia-related diagnosis
+    if (diagnosis.includes('insomnia')) {
+      // If it's a mixed disorder, set moderate risk
+      if (diagnosis.includes('sleep apnea') || diagnosis.includes('mixed')) {
+        insomniaRisk = 'moderate';
+      } else {
+        // Pure insomnia - check severity indicators
+        insomniaRisk = 'high';
+      }
+    }
+
+    // Check for sleep apnea-related diagnosis
+    if (diagnosis.includes('sleep apnea') || diagnosis.includes('apnea')) {
+      // If it's a mixed disorder, set moderate risk
+      if (diagnosis.includes('insomnia') || diagnosis.includes('mixed')) {
+        apneaRisk = 'moderate';
+      } else {
+        // Pure sleep apnea - check severity indicators
+        apneaRisk = 'high';
+      }
+    }
+
+    // Use provided risk levels if available and valid, otherwise use calculated
+    const validRisks = ['high', 'moderate', 'low'];
+    if (results.insomnia_risk && validRisks.includes(results.insomnia_risk.toLowerCase())) {
+      insomniaRisk = results.insomnia_risk.toLowerCase();
+    }
+    if (results.apnea_risk && validRisks.includes(results.apnea_risk.toLowerCase())) {
+      apneaRisk = results.apnea_risk.toLowerCase();
+    }
+
+    return { insomniaRisk, apneaRisk };
+  }
+
   // Create screening record - DIPERBARUI untuk tanggal
   async createScreening(userId, inputData, results) {
     const session = this.driver.session();
@@ -25,6 +65,10 @@ class Neo4jScreeningService {
       console.log('[NEO4J] Creating screening in Neo4j...');
 
       const personId = `USER_${userId}`;
+
+      // Calculate risk levels from diagnosis
+      const { insomniaRisk, apneaRisk } = this.calculateRiskLevels(results);
+      console.log(`[RISK CALC] Calculated risks - Insomnia: ${insomniaRisk}, Apnea: ${apneaRisk} for diagnosis: ${results.diagnosis}`);
 
       const result = await session.executeWrite(async tx => {
         // Merge Person node
@@ -56,8 +100,8 @@ class Neo4jScreeningService {
           screeningId,
           timestamp,
           readableTimestamp,
-          insomniaRisk: results.insomnia_risk || 'unknown',
-          apneaRisk: results.apnea_risk || 'unknown',
+          insomniaRisk,
+          apneaRisk,
           diagnosis: results.diagnosis || 'unknown',
           inputData: JSON.stringify(inputData),
           facts: JSON.stringify(results),

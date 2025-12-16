@@ -73,10 +73,11 @@ const Analytics = () => {
           { month: 'May', count: 7 },
           { month: 'Jun', count: 8 }
         ],
-        riskDistribution: {
-          insomnia: { high: 3, moderate: 5, low: 10 },
-          apnea: { high: 2, moderate: 4, low: 12 }
-        },
+        riskDistribution: [
+          { risk: 'Low', count: 2 },
+          { risk: 'Medium', count: 3 },
+          { risk: 'High', count: 5 }
+        ],
         topRecommendations: [
           { recommendation: 'Maintain consistent sleep schedule', count: 15 },
           { recommendation: 'Reduce caffeine intake', count: 12 },
@@ -84,13 +85,16 @@ const Analytics = () => {
         ]
       };
 
-      // Fill empty arrays with demo data
       data.ruleFrequency = (data.ruleFrequency && data.ruleFrequency.length > 0) ? data.ruleFrequency : demoData.ruleFrequency;
       data.rulePatterns = (data.rulePatterns && data.rulePatterns.length > 0) ? data.rulePatterns : demoData.rulePatterns;
       data.diagnosisDistribution = (data.diagnosisDistribution && data.diagnosisDistribution.length > 0) ? data.diagnosisDistribution : demoData.diagnosisDistribution;
       data.monthlyTrends = (data.monthlyTrends && data.monthlyTrends.length > 0) ? data.monthlyTrends : demoData.monthlyTrends;
-      data.riskDistribution = (data.riskDistribution && Object.keys(data.riskDistribution).length > 0) ? data.riskDistribution : demoData.riskDistribution;
+      data.riskDistribution = (data.riskDistribution && data.riskDistribution.length > 0) ? data.riskDistribution : demoData.riskDistribution;
       data.topRecommendations = (data.topRecommendations && data.topRecommendations.length > 0) ? data.topRecommendations : demoData.topRecommendations;
+
+      console.log('[FRONTEND] Risk distribution data:', data.riskDistribution);
+      console.log('[FRONTEND] Full analytics data:', data);
+
 
       setAnalytics(data);
       setError('');
@@ -126,10 +130,11 @@ const Analytics = () => {
           { month: 'May', count: 7 },
           { month: 'Jun', count: 8 }
         ],
-        riskDistribution: {
-          insomnia: { high: 3, moderate: 5, low: 10 },
-          apnea: { high: 2, moderate: 4, low: 12 }
-        },
+        riskDistribution: [
+          { risk: 'Low', count: 2 },
+          { risk: 'Medium', count: 3 },
+          { risk: 'High', count: 5 }
+        ],
         topRecommendations: [
           { recommendation: 'Maintain consistent sleep schedule', count: 15 },
           { recommendation: 'Reduce caffeine intake', count: 12 },
@@ -166,12 +171,8 @@ const Analytics = () => {
   const diagnosisData = analytics?.diagnosisDistribution || [];
   const trendData = analytics?.monthlyTrends || [];
 
-  // Risk distribution pie chart data
-  const riskData = [
-    { name: 'High', value: analytics?.riskDistribution?.insomnia?.high || 0, color: '#ef4444' },
-    { name: 'Moderate', value: analytics?.riskDistribution?.insomnia?.moderate || 0, color: '#f59e0b' },
-    { name: 'Low', value: analytics?.riskDistribution?.insomnia?.low || 0, color: '#10b981' }
-  ];
+  // Risk distribution bar chart data (insomnia only)
+  const riskData = analytics?.riskDistribution || [];
 
   return (
     <div className="space-y-6">
@@ -338,7 +339,7 @@ const Analytics = () => {
               </div>
             </motion.div>
 
-            {/* Risk Distribution - Replacing Most Fired Rules */}
+            {/* Risk Distribution - Bar Chart for Insomnia Risk Levels */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -346,7 +347,7 @@ const Analytics = () => {
             >
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
-                  <PieChart className="w-6 h-6 text-green-400" />
+                  <BarChart3 className="w-6 h-6 text-green-400" />
                   <h2 className="text-xl font-bold text-white">Risk Distribution</h2>
                 </div>
                 <div className="text-sm text-gray-400">
@@ -354,39 +355,53 @@ const Analytics = () => {
                 </div>
               </div>
               <div className="h-80">
-                {riskData.every(item => item.value === 0) ? (
+                {riskData.every(item => item.count === 0) ? (
                   <div className="h-full flex items-center justify-center">
                     <div className="text-center">
-                      <PieChart size={48} className="mx-auto mb-4 text-gray-500" />
-                      <p className="text-gray-400 font-medium">No test data available</p>
-                      <p className="text-gray-500 text-sm mt-2">Complete a screening to view risk distribution</p>
+                      <BarChart3 size={48} className="mx-auto mb-4 text-gray-500" />
+                      <p className="text-gray-400 font-medium">No insomnia data available</p>
+                      <p className="text-gray-500 text-sm mt-2">Complete a screening with insomnia diagnosis to view risk distribution</p>
                     </div>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPieChart>
-                      <Pie
-                        data={riskData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {riskData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
+                    <BarChart data={riskData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis
+                        dataKey="risk"
+                        stroke="#9ca3af"
+                        tick={{ fill: '#9ca3af' }}
+                      />
+                      <YAxis
+                        stroke="#9ca3af"
+                        tick={{ fill: '#9ca3af' }}
+                        allowDecimals={false}
+                      />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: '#1f2937',
                           border: '1px solid #374151',
                           borderRadius: '0.5rem'
                         }}
+                        labelStyle={{ color: '#fff' }}
                       />
-                    </RechartsPieChart>
+                      <Bar
+                        dataKey="count"
+                        radius={[4, 4, 0, 0]}
+                        name="Number of Cases"
+                      >
+                        {riskData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={
+                              entry.risk === 'Low' ? '#10b981' :
+                                entry.risk === 'Medium' ? '#f59e0b' :
+                                  '#ef4444'
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>

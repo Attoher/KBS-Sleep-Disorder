@@ -8,19 +8,19 @@ class Neo4jService {
   // Log a case to Neo4j
   async logCase(personId, inputData, facts, firedRules) {
     console.log('[NEO4J] Logging case to Neo4j...');
-    
+
     const session = this.driver.session();
     const caseId = `CASE_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     const timestamp = new Date().toISOString();
-    
+
     try {
       console.log(`   Case ID: ${caseId}`);
       console.log(`   Person ID: ${personId}`);
       console.log(`   Rules fired: ${firedRules.length}`);
-      
+
       // Start transaction
       const tx = session.beginTransaction();
-      
+
       // Create or update Person node
       await tx.run(`
         MERGE (p:Person {personId: $personId})
@@ -34,7 +34,7 @@ class Neo4jService {
           p.totalCases = COALESCE(p.totalCases, 0) + 1
         RETURN p.personId as personId
       `, { personId, timestamp, caseId });
-      
+
       // Create Case node
       await tx.run(`
         CREATE (c:Case {
@@ -58,7 +58,7 @@ class Neo4jService {
         facts: JSON.stringify(facts),
         firedRulesCount: firedRules.length
       });
-      
+
       // Link Person to Case
       await tx.run(`
         MATCH (p:Person {personId: $personId})
@@ -67,7 +67,7 @@ class Neo4jService {
         SET r.createdAt = datetime($timestamp)
         RETURN type(r) as relationship
       `, { personId, caseId, timestamp });
-      
+
       // Create Diagnosis node and link to Case
       const diagnosis = facts.diagnosis || 'unknown';
       await tx.run(`
@@ -75,14 +75,14 @@ class Neo4jService {
         ON CREATE SET d.createdAt = datetime($timestamp)
         ON MATCH SET d.updatedAt = datetime($timestamp)
       `, { diagnosis, timestamp });
-      
+
       await tx.run(`
         MATCH (c:Case {caseId: $caseId})
         MATCH (d:Diagnosis {name: $diagnosis})
         MERGE (c)-[r:HAS_DIAGNOSIS]->(d)
         SET r.createdAt = datetime($timestamp)
       `, { caseId, diagnosis, timestamp });
-      
+
       // Create Rule nodes and relationships
       for (const ruleId of firedRules) {
         await tx.run(`
@@ -90,7 +90,7 @@ class Neo4jService {
           ON CREATE SET r.createdAt = datetime($timestamp)
           ON MATCH SET r.updatedAt = datetime($timestamp)
         `, { ruleId, timestamp });
-        
+
         await tx.run(`
           MATCH (c:Case {caseId: $caseId})
           MATCH (r:Rule {ruleId: $ruleId})
@@ -99,7 +99,7 @@ class Neo4jService {
               fired.timestamp = datetime($timestamp)
         `, { caseId, ruleId, order: firedRules.indexOf(ruleId) + 1, timestamp });
       }
-      
+
       // Create relationships between fired rules
       for (let i = 0; i < firedRules.length - 1; i++) {
         await tx.run(`
@@ -110,13 +110,13 @@ class Neo4jService {
               n.updatedAt = datetime($timestamp)
         `, { rule1: firedRules[i], rule2: firedRules[i + 1], timestamp });
       }
-      
+
       // Commit transaction
       await tx.commit();
-      
+
       console.log(`[SUCCESS] Case ${caseId} logged to Neo4j successfully`);
       return caseId;
-      
+
     } catch (error) {
       console.error('[ERROR] Neo4j logging error:', error);
       await tx?.rollback();
@@ -129,21 +129,21 @@ class Neo4jService {
   // Get rule firing statistics - FROM SCREENING FACTS
   async getRuleFiringPatterns(userId = null) {
     const session = this.driver.session();
-    
+
     try {
       let query = `MATCH (s:Screening) WHERE s.facts IS NOT NULL RETURN s.facts as factsStr LIMIT 1000`;
       const params = {};
-      
+
       if (userId) {
         query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.facts IS NOT NULL RETURN s.facts as factsStr LIMIT 1000`;
         params.personId = `USER_${userId}`;
       }
-      
+
       const result = await session.run(query, params);
-      
+
       // Parse facts from all screenings and count rules
       const ruleCounts = {};
-      
+
       result.records.forEach(record => {
         try {
           const factsStr = record.get('factsStr');
@@ -159,7 +159,7 @@ class Neo4jService {
           // Skip parsing errors silently
         }
       });
-      
+
       // Convert to array and sort by frequency
       const rulesArray = Object.entries(ruleCounts)
         .map(([ruleId, frequency]) => ({
@@ -170,7 +170,7 @@ class Neo4jService {
         }))
         .sort((a, b) => b.frequency - a.frequency)
         .slice(0, 20);
-      
+
       console.log('[INFO] Rule firing patterns:', rulesArray);
       return rulesArray.length > 0 ? rulesArray : [];
     } catch (error) {
@@ -184,34 +184,34 @@ class Neo4jService {
   // Get common diagnosis paths - FROM SCREENING FACTS
   async getCommonDiagnosisPaths(userId = null) {
     const session = this.driver.session();
-    
+
     try {
       let query = `MATCH (s:Screening) WHERE s.facts IS NOT NULL AND s.diagnosis IS NOT NULL RETURN s.facts as factsStr, s.diagnosis as diagnosis LIMIT 1000`;
       const params = {};
-      
+
       if (userId) {
         query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.facts IS NOT NULL AND s.diagnosis IS NOT NULL RETURN s.facts as factsStr, s.diagnosis as diagnosis LIMIT 1000`;
         params.personId = `USER_${userId}`;
       }
-      
+
       const result = await session.run(query, params);
-      
+
       // Group rules by diagnosis
       const pathsByDiagnosis = {};
-      
+
       result.records.forEach(record => {
         try {
           const factsStr = record.get('factsStr');
           const diagnosis = record.get('diagnosis');
-          
+
           if (factsStr && diagnosis) {
             const facts = typeof factsStr === 'string' ? JSON.parse(factsStr) : factsStr;
             const rulePath = facts.firedRules || [];
-            
+
             if (!pathsByDiagnosis[diagnosis]) {
               pathsByDiagnosis[diagnosis] = {};
             }
-            
+
             // Convert rulePath array to key for counting
             const pathKey = rulePath.join(',');
             pathsByDiagnosis[diagnosis][pathKey] = (pathsByDiagnosis[diagnosis][pathKey] || 0) + 1;
@@ -220,7 +220,7 @@ class Neo4jService {
           // Skip parsing errors
         }
       });
-      
+
       // Convert to array format for API
       const patterns = [];
       Object.entries(pathsByDiagnosis).forEach(([diagnosis, paths]) => {
@@ -233,7 +233,7 @@ class Neo4jService {
           });
         });
       });
-      
+
       // Sort by count and limit
       return patterns
         .sort((a, b) => b.count - a.count)
@@ -249,18 +249,18 @@ class Neo4jService {
   // Get dashboard statistics - QUERY FROM SCREENING NODES
   async getDashboardStats(userId = null) {
     const session = this.driver.session();
-    
+
     try {
       console.log('[QUERY] getDashboardStats query for:', userId || 'ALL USERS');
-      
+
       const params = {};
       let baseQuery = `MATCH (s:Screening)`;
-      
+
       if (userId) {
         baseQuery = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening)`;
         params.personId = `USER_${userId}`;
       }
-      
+
       // Get most common diagnosis first
       const diagQuery = `
         ${baseQuery}
@@ -269,10 +269,10 @@ class Neo4jService {
         RETURN diagnosis
         LIMIT 1
       `;
-      
+
       const diagResult = await session.run(diagQuery, params);
       const mostCommon = diagResult.records[0]?.get('diagnosis') || 'N/A';
-      
+
       // Get overall stats
       const statsQuery = `
         ${baseQuery}
@@ -281,9 +281,9 @@ class Neo4jService {
           SUM(CASE WHEN date(datetime(s.timestamp)) = date() THEN 1 ELSE 0 END) as todayCases,
           AVG(s.firedRulesCount) as avgRulesFired
       `;
-      
+
       const statsResult = await session.run(statsQuery, params);
-      
+
       if (statsResult.records.length === 0) {
         return {
           totalCases: 0,
@@ -292,19 +292,19 @@ class Neo4jService {
           avgRulesFired: '0.0'
         };
       }
-      
+
       const record = statsResult.records[0];
       const totalValue = record.get('totalCases');
       const todayValue = record.get('todayCases');
       const avgValue = record.get('avgRulesFired');
-      
+
       const stats = {
         totalCases: typeof totalValue === 'object' && 'low' in totalValue ? totalValue.low : (totalValue || 0),
         todayCases: typeof todayValue === 'object' && 'low' in todayValue ? todayValue.low : (todayValue || 0),
         mostCommonDiagnosis: mostCommon && mostCommon !== 'null' ? mostCommon : 'N/A',
         avgRulesFired: parseFloat(avgValue || 0).toFixed(1)
       };
-      
+
       console.log('[INFO] Returning dashboard stats:', stats);
       return stats;
     } catch (error) {
@@ -325,7 +325,7 @@ class Neo4jService {
   // Get cases by date range - DIPERBARUI
   async getCasesByDateRange(startDate, endDate) {
     const session = this.driver.session();
-    
+
     try {
       const result = await session.run(`
         MATCH (c:Case)
@@ -337,7 +337,7 @@ class Neo4jService {
           COLLECT(DISTINCT c.diagnosis) as diagnoses
         ORDER BY date
       `, { startDate, endDate });
-      
+
       return result.records.map(record => ({
         date: record.get('date')?.toString() || 'Unknown',
         caseCount: record.get('caseCount').low || 0,
@@ -354,7 +354,7 @@ class Neo4jService {
   // Get rule network graph
   async getRuleNetwork() {
     const session = this.driver.session();
-    
+
     try {
       const result = await session.run(`
         MATCH (r1:Rule)-[n:NEXT]->(r2:Rule)
@@ -367,7 +367,7 @@ class Neo4jService {
         ORDER BY n.weight DESC
         LIMIT 50
       `);
-      
+
       return result.records.map(record => ({
         source: record.get('source'),
         target: record.get('target'),
@@ -385,16 +385,16 @@ class Neo4jService {
   // Get diagnosis distribution - BARU
   async getDiagnosisDistribution(userId = null) {
     const session = this.driver.session();
-    
-      try {
+
+    try {
       let query = `MATCH (s:Screening) WHERE s.diagnosis IS NOT NULL`;
       const params = {};
-      
+
       if (userId) {
         query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.diagnosis IS NOT NULL`;
         params.personId = `USER_${userId}`;
       }
-      
+
       const result = await session.run(`
         ${query}
         RETURN 
@@ -403,9 +403,9 @@ class Neo4jService {
         ORDER BY count DESC
         LIMIT 10
       `, params);
-      
+
       console.log('[QUERY] Diagnosis Distribution query result:', result.records.length, 'records');
-      
+
       const data = result.records.map(record => {
         const countVal = record.get('count');
         let count = 0;
@@ -419,7 +419,7 @@ class Neo4jService {
           count: parseInt(count) || 0
         };
       });
-      
+
       console.log('[INFO] Diagnosis Distribution data:', data);
       return data;
     } catch (error) {
@@ -438,16 +438,16 @@ class Neo4jService {
   // Get monthly trends - QUERY FROM SCREENING NODES
   async getMonthlyTrends(userId = null) {
     const session = this.driver.session();
-    
+
     try {
       let query = `MATCH (s:Screening) WHERE s.timestamp IS NOT NULL`;
       const params = {};
-      
+
       if (userId) {
         query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.timestamp IS NOT NULL`;
         params.personId = `USER_${userId}`;
       }
-      
+
       const result = await session.run(`
         ${query}
         WITH 
@@ -458,16 +458,16 @@ class Neo4jService {
           count
         ORDER BY month ASC
       `, params);
-      
+
       console.log('[QUERY] Monthly Trends query result:', result.records.length, 'records');
-      
+
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      
+
       const data = result.records.map(record => {
         const dateStr = record.get('month'); // Format: 2025-12-01
         let monthName = 'Unknown';
         let monthNum = -1;
-        
+
         // Parse date string (format: YYYY-MM-DD)
         if (dateStr && typeof dateStr === 'string') {
           const parts = dateStr.split('-');
@@ -475,11 +475,11 @@ class Neo4jService {
             monthNum = parseInt(parts[1]) - 1; // Convert to 0-indexed
           }
         }
-        
+
         if (monthNum >= 0 && monthNum < 12) {
           monthName = months[monthNum];
         }
-        
+
         const countVal = record.get('count');
         let count = 0;
         if (countVal && typeof countVal === 'object' && 'low' in countVal) {
@@ -492,7 +492,7 @@ class Neo4jService {
           count: parseInt(count) || 0
         };
       });
-      
+
       console.log('[INFO] Monthly Trends data:', data);
       return data;
     } catch (error) {
@@ -504,53 +504,70 @@ class Neo4jService {
     }
   }
 
-  // Get risk distribution - QUERY FROM SCREENING NODES
+  // Get risk distribution - QUERY FROM SCREENING NODES (INSOMNIA ONLY)
   async getRiskDistribution(userId = null) {
     const session = this.driver.session();
-    
+
     try {
       let query = `MATCH (s:Screening)`;
       const params = {};
-      
+
       if (userId) {
         query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening)`;
         params.personId = `USER_${userId}`;
       }
-      
+
+      // Filter only screenings with insomnia diagnosis
       const result = await session.run(`
         ${query}
+        WHERE toLower(s.diagnosis) CONTAINS 'insomnia'
         RETURN 
           s.insomniaRisk as insomniaRisk,
-          s.apneaRisk as apneaRisk,
-          COUNT(s) as count
+          s.diagnosis as diagnosis,
+          COUNT(*) as count
       `, params);
-      
+
+      console.log('[NEO4J] Risk distribution query returned', result.records.length, 'records');
+
       const distribution = {
-        insomnia: { high: 0, moderate: 0, low: 0 },
-        apnea: { high: 0, moderate: 0, low: 0 }
+        low: 0,
+        medium: 0,
+        high: 0
       };
-      
+
       result.records.forEach(record => {
-        const insomniaRisk = record.get('insomniaRisk');
-        const apneaRisk = record.get('apneaRisk');
-        const count = record.get('count').low;
-        
-        if (insomniaRisk && distribution.insomnia[insomniaRisk] !== undefined) {
-          distribution.insomnia[insomniaRisk] += count;
-        }
-        
-        if (apneaRisk && distribution.apnea[apneaRisk] !== undefined) {
-          distribution.apnea[apneaRisk] += count;
+        const insomniaRisk = (record.get('insomniaRisk') || '').toLowerCase();
+        const diagnosis = record.get('diagnosis');
+        const countVal = record.get('count');
+        const count = (countVal && typeof countVal === 'object' && 'low' in countVal) ? countVal.low : (countVal || 0);
+
+        console.log('[NEO4J] Processing record:', { insomniaRisk, diagnosis, count });
+
+        // Map 'moderate' to 'medium' for consistency
+        if (insomniaRisk === 'low') {
+          distribution.low += count;
+        } else if (insomniaRisk === 'moderate' || insomniaRisk === 'medium') {
+          distribution.medium += count;
+        } else if (insomniaRisk === 'high') {
+          distribution.high += count;
+        } else {
+          console.log('[NEO4J] Unknown or empty risk level:', insomniaRisk, '- skipping');
         }
       });
-      
-      return distribution;
+
+      // Return as array for bar chart
+      return [
+        { risk: 'Low', count: distribution.low },
+        { risk: 'Medium', count: distribution.medium },
+        { risk: 'High', count: distribution.high }
+      ];
     } catch (error) {
       console.error('Error fetching risk distribution:', error);
-      return {
-        insomnia: { high: 3, moderate: 5, low: 10 },
-        apnea: { high: 2, moderate: 4, low: 12 }
-      };
+      return [
+        { risk: 'Low', count: 0 },
+        { risk: 'Medium', count: 0 },
+        { risk: 'High', count: 0 }
+      ];
     } finally {
       await session.close();
     }
@@ -559,25 +576,25 @@ class Neo4jService {
   // Get top recommendations - BARU
   async getTopRecommendations(userId = null) {
     const session = this.driver.session();
-    
+
     try {
       // Query from Screening nodes instead of Case nodes
       let query = `MATCH (s:Screening) WHERE s.recommendations IS NOT NULL`;
       const params = {};
-      
+
       if (userId) {
         query = `MATCH (p:Person {personId: $personId})-[:HAS_SCREENING]->(s:Screening) WHERE s.recommendations IS NOT NULL`;
         params.personId = `USER_${userId}`;
       }
-      
+
       const result = await session.run(`
         ${query}
         RETURN s.recommendations as recommendations
         LIMIT 100
       `, params);
-      
+
       const recommendations = {};
-      
+
       result.records.forEach(record => {
         try {
           const recStr = record.get('recommendations');
@@ -591,7 +608,7 @@ class Neo4jService {
           // Skip if JSON parsing fails
         }
       });
-      
+
       return Object.entries(recommendations)
         .map(([recommendation, count]) => ({ recommendation, count }))
         .sort((a, b) => b.count - a.count)

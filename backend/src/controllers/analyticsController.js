@@ -44,10 +44,11 @@ class AnalyticsController {
               { month: 'Nov', count: 2 },
               { month: 'Dec', count: 1 }
             ],
-            riskDistribution: {
-              insomnia: { high: 3, moderate: 5, low: 10 },
-              apnea: { high: 2, moderate: 4, low: 12 }
-            },
+            riskDistribution: [
+              { risk: 'Low', count: 10 },
+              { risk: 'Medium', count: 5 },
+              { risk: 'High', count: 3 }
+            ],
             topRecommendations: [
               { recommendation: 'Maintain consistent sleep schedule', count: 15 },
               { recommendation: 'Reduce caffeine intake', count: 12 },
@@ -68,13 +69,13 @@ class AnalyticsController {
 
       const userId = req.user?.id;
       const { timeframe = 'all' } = req.query;
-      
+
       console.log('[ANALYTICS] Analytics request for userId:', userId);
-      
+
       // Get all analytics data - pass userId for user-specific data
       const [
-        ruleFrequency, 
-        rulePatterns, 
+        ruleFrequency,
+        rulePatterns,
         dashboardStats,
         ruleNetwork,
         diagnosisDistribution,
@@ -91,9 +92,10 @@ class AnalyticsController {
         neo4jService.getRiskDistribution(userId),
         neo4jService.getTopRecommendations(userId)
       ]);
-      
+
       console.log('[ANALYTICS] Dashboard stats received:', dashboardStats);
-      
+      console.log('[ANALYTICS] Risk distribution received:', riskDistribution);
+
       res.json({
         success: true,
         data: {
@@ -101,13 +103,13 @@ class AnalyticsController {
           ruleFrequency,
           rulePatterns,
           ruleNetwork,
-          
+
           // New dynamic data
           diagnosisDistribution,
           monthlyTrends,
           riskDistribution,
           topRecommendations,
-          
+
           // Dashboard statistics
           statistics: {
             totalScreenings: dashboardStats.totalCases || 0,
@@ -118,13 +120,13 @@ class AnalyticsController {
             uniqueRulesFired: ruleFrequency.length || 'N/A',
             ...dashboardStats
           },
-          
+
           // Timeframe info
           timeframe,
           generatedAt: new Date().toISOString()
         }
       });
-      
+
     } catch (error) {
       console.error('Analytics error:', error);
       // Return demo data if error
@@ -148,10 +150,11 @@ class AnalyticsController {
             { month: 'May', count: 7 },
             { month: 'Jun', count: 8 }
           ],
-          riskDistribution: {
-            insomnia: { high: 3, moderate: 5, low: 10 },
-            apnea: { high: 2, moderate: 4, low: 12 }
-          },
+          riskDistribution: [
+            { risk: 'Low', count: 10 },
+            { risk: 'Medium', count: 5 },
+            { risk: 'High', count: 3 }
+          ],
           topRecommendations: [
             { recommendation: 'Maintain consistent sleep schedule', count: 15 },
             { recommendation: 'Reduce caffeine intake', count: 12 }
@@ -169,7 +172,7 @@ class AnalyticsController {
       });
     }
   }
-  
+
   // Get rule performance analytics
   async getRuleAnalytics(req, res) {
     try {
@@ -204,7 +207,7 @@ class AnalyticsController {
       const ruleFrequency = await neo4jService.getRuleFiringPatterns();
       const rulePatterns = await neo4jService.getCommonDiagnosisPaths();
       const ruleNetwork = await neo4jService.getRuleNetwork();
-      
+
       // Calculate rule effectiveness
       const ruleEffectiveness = {};
       rulePatterns.forEach(pattern => {
@@ -221,39 +224,39 @@ class AnalyticsController {
           ruleEffectiveness[ruleId].associatedDiagnoses.add(pattern.diagnosis);
         });
       });
-      
+
       // Merge with firing frequency
       ruleFrequency.forEach(rule => {
         if (ruleEffectiveness[rule.ruleId]) {
           ruleEffectiveness[rule.ruleId].timesFired = rule.frequency;
-          ruleEffectiveness[rule.ruleId].effectivenessRate = 
+          ruleEffectiveness[rule.ruleId].effectivenessRate =
             rule.frequency > 0 ? (ruleEffectiveness[rule.ruleId].timesLeadingToDiagnosis / rule.frequency) * 100 : 0;
-          ruleEffectiveness[rule.ruleId].associatedDiagnoses = 
+          ruleEffectiveness[rule.ruleId].associatedDiagnoses =
             Array.from(ruleEffectiveness[rule.ruleId].associatedDiagnoses);
         }
       });
-      
+
       res.json({
         success: true,
         data: {
           ruleFrequency,
           rulePatterns: rulePatterns.slice(0, 10),
           ruleNetwork,
-          ruleEffectiveness: Object.values(ruleEffectiveness).sort((a, b) => 
+          ruleEffectiveness: Object.values(ruleEffectiveness).sort((a, b) =>
             b.effectivenessRate - a.effectivenessRate
           ),
           summary: {
             totalRules: ruleFrequency.length,
             mostFiredRule: ruleFrequency[0] || null,
-            mostEffectiveRule: Object.values(ruleEffectiveness).sort((a, b) => 
+            mostEffectiveRule: Object.values(ruleEffectiveness).sort((a, b) =>
               b.effectivenessRate - a.effectivenessRate
             )[0] || null,
-            averageRulesPerCase: ruleFrequency.reduce((sum, rule) => sum + rule.frequency, 0) / 
+            averageRulesPerCase: ruleFrequency.reduce((sum, rule) => sum + rule.frequency, 0) /
               (rulePatterns.reduce((sum, pattern) => sum + pattern.count, 0) || 1)
           }
         }
       });
-      
+
     } catch (error) {
       console.error('Rule analytics error:', error);
       res.status(500).json({
@@ -262,7 +265,7 @@ class AnalyticsController {
       });
     }
   }
-  
+
   // Get trends over time
   async getTrends(req, res) {
     try {
@@ -286,7 +289,7 @@ class AnalyticsController {
       }
 
       const { period = 'monthly' } = req.query;
-      
+
       let trends = [];
       if (period === 'monthly') {
         trends = await neo4jService.getMonthlyTrends();
@@ -294,17 +297,17 @@ class AnalyticsController {
         // For weekly/daily trends, adjust query
         const endDate = new Date().toISOString().split('T')[0];
         const startDate = new Date();
-        
+
         if (period === 'weekly') {
           startDate.setDate(startDate.getDate() - 7);
         } else if (period === 'daily') {
           startDate.setDate(startDate.getDate() - 30);
         }
-        
+
         const dateStr = startDate.toISOString().split('T')[0];
         trends = await neo4jService.getCasesByDateRange(dateStr, endDate);
       }
-      
+
       res.json({
         success: true,
         data: {
@@ -313,7 +316,7 @@ class AnalyticsController {
           generatedAt: new Date().toISOString()
         }
       });
-      
+
     } catch (error) {
       console.error('Trends error:', error);
       res.status(500).json({
@@ -322,14 +325,14 @@ class AnalyticsController {
       });
     }
   }
-  
+
   // Get predictive insights
   async getInsights(req, res) {
     try {
       if (DEMO_MODE) {
         return res.json({
           success: true,
-          data: { 
+          data: {
             insights: [
               {
                 type: 'common_pattern',
@@ -338,17 +341,17 @@ class AnalyticsController {
                 frequency: 8,
                 confidence: 75
               }
-            ], 
-            generatedAt: new Date().toISOString() 
+            ],
+            generatedAt: new Date().toISOString()
           }
         });
       }
 
       const rulePatterns = await neo4jService.getCommonDiagnosisPaths();
       const ruleFrequency = await neo4jService.getRuleFiringPatterns();
-      
+
       const insights = [];
-      
+
       // Insight 1: Most common rule sequences
       const diagnosisPatterns = {};
       rulePatterns.forEach(pattern => {
@@ -357,7 +360,7 @@ class AnalyticsController {
         }
         diagnosisPatterns[pattern.diagnosis].push(pattern);
       });
-      
+
       Object.entries(diagnosisPatterns).forEach(([diagnosis, patterns]) => {
         insights.push({
           type: 'common_pattern',
@@ -367,7 +370,7 @@ class AnalyticsController {
           confidence: patterns[0]?.count / patterns.reduce((sum, p) => sum + p.count, 0) * 100
         });
       });
-      
+
       // Insight 2: Rules that frequently fire together
       const ruleCoOccurrence = {};
       rulePatterns.forEach(pattern => {
@@ -379,7 +382,7 @@ class AnalyticsController {
           }
         }
       });
-      
+
       const topCoOccurrences = Object.entries(ruleCoOccurrence)
         .map(([key, count]) => {
           const [rule1, rule2] = key.split('_');
@@ -387,13 +390,13 @@ class AnalyticsController {
         })
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
-      
+
       insights.push({
         type: 'rule_co_occurrence',
         title: 'Rules That Frequently Fire Together',
         data: topCoOccurrences
       });
-      
+
       // Insight 3: Diagnosis risk factors
       const riskFactors = ruleFrequency
         .filter(rule => rule.frequency > 10)
@@ -405,13 +408,13 @@ class AnalyticsController {
         }))
         .sort((a, b) => b.impact - a.impact)
         .slice(0, 5);
-      
+
       insights.push({
         type: 'risk_factors',
         title: 'Top Risk Factors',
         data: riskFactors
       });
-      
+
       res.json({
         success: true,
         data: {
@@ -424,7 +427,7 @@ class AnalyticsController {
           }
         }
       });
-      
+
     } catch (error) {
       console.error('Insights error:', error);
       res.status(500).json({
